@@ -1706,6 +1706,7 @@ HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command,
     }
 }
 
+/* FIXME: This function is unused. Remove? */
 /* Write a buffer to SockFd with IAC escaping */
 void
 EscWriteBuffer(BufferType * B, unsigned char *Buffer, unsigned int BSize)
