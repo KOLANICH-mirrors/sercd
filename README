@@ -11,13 +11,17 @@ implemented in Cisco Terminal Servers in IOS version 11.x.
 
 RFC 2217 clients include:
 
- * C-Kermit 8.0 for Unix,VMS,QNX,... 
+ * C-Kermit 8.0 for Unix, VMS, and QNX
    <http://www.columbia.edu/kermit/ckermit.html>
 
  * DialOut/IP V2, a commercial Windows 95/98/NT client. 
    <www.tacticalsoftware.com>
 
  * cyclades-serial-client
+   <http://www.lysator.liu.se/~astrand/projects/cyclades-serial-client/>
+
+ * HW Virtual Serial Port (for Windows 2000 and XP)
+   <http://www.hw-group.com/products/hw_vsp/index_en.html>
 
 
 Compilation
