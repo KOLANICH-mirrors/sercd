@@ -398,9 +398,9 @@ void
 PushToBuffer(BufferType * B, unsigned char C)
 {
     if (B->RdPos == 0)
-        B->RdPos = BufferSize - 1;
+	B->RdPos = BufferSize - 1;
     else
-        B->RdPos--;
+	B->RdPos--;
 
     B->Buffer[B->RdPos] = C;
 }
