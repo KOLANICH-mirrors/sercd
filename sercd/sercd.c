@@ -144,6 +144,11 @@
 /* Default modem state polling in milliseconds (100 msec should be enough) */
 #define ModemStatePolling 100
 
+/* macros */
+#ifndef MAX
+#define MAX(x,y)                (((x) > (y)) ? (x) : (y))
+#endif
+
 /* Standard boolean definition */
 typedef enum
 { False, True } Boolean;
@@ -420,7 +425,7 @@ void
 LogMsg(int LogLevel, const char *const Msg)
 {
     if (LogLevel <= MaxLogLevel)
-	syslog(LogLevel, Msg);
+	syslog(LogLevel, "%s", Msg);
 }
 
 /* Try to lock the file given in LockFile as pid LockPid using the classical
@@ -1339,8 +1344,11 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	}
 	else {
 	    /* Received client signature */
-	    strncpy(SigStr, (char *) &Command[4], CSize - 6);
-	    sprintf(LogStr, "Received client signature: %s", SigStr);
+	    strncpy(SigStr, (char *) &Command[4],
+		    MAX(CSize - 6, sizeof(SigStr) - 1));
+	    snprintf(LogStr, sizeof(LogStr) - 1,
+		     "Received client signature: %s", SigStr);
+	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_INFO, LogStr);
 	}
 	break;
