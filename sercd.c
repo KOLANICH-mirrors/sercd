@@ -1,5 +1,5 @@
 /*
-    sredird: RFC 2217 compliant serial port redirector
+    sercd: RFC 2217 compliant serial port redirector
     Version 2.2.0, 09 July 2003
     Copyright (C) 1999 - 2003 InfoTecna s.r.l.
     Copyright (C) 2001, 2002 Trustees of Columbia University
@@ -118,7 +118,7 @@
 
 /* Version id */
 #define VersionId "2.2.0"
-#define SRedirdVersionId "Version " VersionId ", 09 July 2003"
+#define SercdVersionId "Version " VersionId ", 09 July 2003"
 
 /* Locking constants */
 #define LockOk 0
@@ -601,7 +601,7 @@ void ExitFunction(void)
     HDBUnlockFile(LockFileName,getpid());
 
     /* Program termination notification */
-    LogMsg(LOG_NOTICE,"SRedird stopped.");
+    LogMsg(LOG_NOTICE,"sercd stopped.");
 
     /* Closes the log */
     closelog();
@@ -1377,7 +1377,7 @@ void HandleCPCCommand(BufferType *SockB, int PortFd, unsigned char * Command, si
           if (CSize == 6)
             {
               /* Void signature, client is asking for our signature */
-              sprintf(SigStr,"SRedird %s %s",VersionId,DeviceName);
+              sprintf(SigStr,"sercd %s %s",VersionId,DeviceName);
               SendSignature(SockB,SigStr);
               sprintf(LogStr,"Sent signature: %s",SigStr);
               LogMsg(LOG_INFO,LogStr);
@@ -1771,19 +1771,19 @@ void EscWriteBuffer(BufferType * B, unsigned char * Buffer, unsigned int BSize)
 void Usage(void)
 {
     /* Write little usage information */
-    puts("sredird: RFC 2217 compliant serial port redirector");
-    puts(SRedirdVersionId);
+    puts("sercd: RFC 2217 compliant serial port redirector");
+    puts(SercdVersionId);
     puts("This program should be run only by the inetd superserver");
-    puts("Usage: sredird [-i] <loglevel> <device> <lockfile> [pollingterval]");
+    puts("Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
     puts("-i indicates Cisco IOS Bug compatibility");
     puts("Poll interval is in milliseconds, default is 100, "
           "0 means no polling");
 
     /* Same on the system log */
-    LogMsg(LOG_ERR,"sredird: RFC 2217 compliant serial port redirector.");
-    LogMsg(LOG_ERR,SRedirdVersionId);
+    LogMsg(LOG_ERR,"sercd: RFC 2217 compliant serial port redirector.");
+    LogMsg(LOG_ERR,SercdVersionId);
     LogMsg(LOG_ERR,"This program should be run only by the inetd superserver.");
-    LogMsg(LOG_ERR,"Usage: sredird [-i] <loglevel> <device> <lockfile> [pollingterval]");
+    LogMsg(LOG_ERR,"Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
     LogMsg(LOG_ERR,"-i indicates Cisco IOS Bug compatibility");
     LogMsg(LOG_ERR,"Poll interval is in milliseconds, default is 100, 0 means no polling.");
 }
@@ -1838,7 +1838,7 @@ int main(int argc, char * argv[])
     int i;
 
     /* Open the system log */
-    openlog("sredird",LOG_PID,LOG_USER);
+    openlog("sercd",LOG_PID,LOG_USER);
 
     /* Check the command line argument count */
     if (argc < 4)
@@ -1902,10 +1902,10 @@ int main(int argc, char * argv[])
         MaxBTicks = (BTimeout.tv_usec * CLOCKS_PER_SEC) / (1000 * 1000);
       }
 
-    /* Logs sredird start */
-    LogMsg(LOG_NOTICE,"SRedird started.");
+    /* Logs sercd start */
+    LogMsg(LOG_NOTICE,"sercd started.");
 
-    /* Logs sredird log level */
+    /* Logs sercd log level */
     sprintf(LogStr,"Log level: %i",MaxLogLevel);
     LogMsg(LOG_INFO,LogStr);
 
