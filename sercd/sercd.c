@@ -38,44 +38,6 @@
 
       . The code probably won't compile on most versions of Unix due to the
         highly platform dependent nature of the serial apis.
-
-    Fixed in 2.0.0:
-
-      . Telnet DO ECHO should not be refused.  The modem handles the echoing
-        if necessary.
-
-      . Cisco IOS returns 0 to the client when INBOUND flow control is SET but
-        not supported seperately from OUTBOUND.
-
-      . Track the state of the telnet negotiations
-
-      . Add support for BINARY mode translations
-
-   Fixed in 2.1.0:
-
-      . GetPortFlowControl should return 1 to indicate NO FLOW CONTROL 
-        instead of 0.  
-  
-      . The Cisco IOS hack should become activated only if set by command-
-        line option [-i].
-      
-      . Changed the order of checks in the EscWriteChar function for slightly
-        better performance
-
-   Fixed in 2.2.0:
-
-      Mario Viara
-
-      Email: mario@viara.info
-
-      . Fixed set port data size now work with 5 6 7 8 bits.
-      . Add version in get signature.
-
-      Russell Coker <russell@coker.com.au> 
-
-      . Many minor changes and code cleanup
-      
-      For other important changes from Russell Coker see the README file.
         
 */
 
