@@ -6,5 +6,4 @@ sercd_SOURCES = sercd.c
 
 man_MANS = sercd.8
 
-EXTRA_DIST = sercd.xinetd
-
+EXTRA_DIST =  $(man_MANS) sercd.xinetd
