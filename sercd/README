@@ -1,84 +1,49 @@
-sredird: RFC 2217 compliant serial port redirector
-Version 2.2.0, 09 July 2003
-Copyright (C) 1999-2003 InfoTecna s.r.l.
-Copyright (C) 2001, 2002 Trustees of Columbia University
-in the City of New York
+sercd: RFC 2217 Serial Communications Daemon
+============================================
 
-1 - Disclaimer
+Introduction
+------------
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2 of the License, or (at your
-option) any later version.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-675 Mass Ave, Cambridge, MA 02139, USA.
-
-To contact the authors:
-
-  Denis Sbragion
-  InfoTecna
-  Tel, Fax: +39 0362 805396
-  URL: http://www.infotecna.it
-  E-Mail: d.sbragion@infotecna.it
-
-  Jeffrey Altman
-  Columbia University
-  URL:  http://www.columbia.edu/kermit/
-  E-mail: kermit-support@columbia.edu
-
-
-2 - Introduction
-
-Sredird is a serial port redirector that is compliant with the RFC 2217
-"Telnet Com Port Control Option" protocol. This protocol lets you share
-a serial port through the network. RFC 2217 was orginally implemented
-in Cisco Terminal Servers in IOS version 11.x.
+sercd is a serial port redirector that is compliant with the RFC 2217
+"Telnet Com Port Control Option" protocol. This protocol lets you
+share a serial port through the network. RFC 2217 was orginally
+implemented in Cisco Terminal Servers in IOS version 11.x.
 
 RFC 2217 clients include:
 
- . C-Kermit 8.0 for Unix,VMS,QNX,... 
+ * C-Kermit 8.0 for Unix,VMS,QNX,... 
    <http://www.columbia.edu/kermit/ckermit.html>
 
- . DialOut/IP V2, a commercial Windows 95/98/NT client. 
+ * DialOut/IP V2, a commercial Windows 95/98/NT client. 
    <www.tacticalsoftware.com>
 
-Information on RFC 2217 and the Telnet Protocol is available at www.ietf.org.
+ * cyclades-serial-client
 
-3 - Compilation
 
-Just compile the sredird.c file with your favorite compiler and your
-favorite optimizations options. Under Linux a line like:
+Compilation
+-----------
 
-gcc -O3 -m486 -pipe -fomit-frame-pointer
+Do "make". 
 
-should do the job. Rename the output (usually a.out) to sredird.
-You can also try the supplied Makefile. Check it for compiler option
-before running the make command.
 
-4 - Command line parameters
+Command line parameters
+-----------------------
 
-Sredird takes three mandatory parameters and two optional parameters, 
+sercd takes three mandatory parameters and two optional parameters, 
 one at the beginning and one at the end of the command line.
 
 The mandatory parameters are:
 
-Log level: 0 to 7, 0 being no log and 7 being debug log. Sredird uses
-the standard syslog facility for logging. Look at the syslog(3) man page
-for further information on the syslog facility and log levels.
+Log level: 0 to 7, 0 being no log and 7 being debug log. sercd uses
+the standard syslog facility for logging. Look at the syslog(3) man
+page for further information on the syslog facility and log levels.
 
 Device: the device complete path. Something like /dev/ttyS0 or /dev/modem.
 
 Lock file: the file to use for inter-application locking. This must
 match the one used by other applications, usually something like
 /var/lock/LCK..ttyS0 or /var/lock/LCK..modem for the devices considered
-above. Sredird supports only HDB style (i.e. ASCII) file locking.
+above. sercd supports only HDB style (i.e. ASCII) file locking.
 
 The optional parameters are:
 
@@ -99,87 +64,101 @@ also the maximum time data is left in the output buffer before sending
 it, even if the buffer isn't completely full, so the polling interval
 globally sets the maximum latency of any sredird action.
 
-5 - Installation
 
-Put the executable in a suitable directory (/usr/sbin or /usr/local/sbin).
-Sredird is designed to run under inetd control. The line in the inetd
-configuration file (usually /etc/inetd.conf) should look like this:
+Installation
+-------------
+
+Put the executable in a suitable directory (/usr/sbin or
+/usr/local/sbin).  sercd is designed to run under inetd control. The
+line in the inetd configuration file (usually /etc/inetd.conf) should
+look like this:
 
 sredir          stream  tcp     nowait  root    /usr/sbin/tcpd /usr/sbin/sredird -i 5 /dev/modem /var/lock/LCK..modem
 
 Of course, "sredir" should be defined in the services file (usually
-/etc/services, usual values start at port 7000) and "/dev/modem" should
-be substituted by the appropriate device. The lock and the device name
-must match for correct interlocking with other programs. The tcpd program
-is the usual tcp wrapper that's not needed for correct operation but
-is useful for security purposes. Don't forget to send a SIGHUP to the
-inetd daemon in order to force reload of the configuration file. The
-initial -i paramater is optional and enables compatibility with the
-Cisco IOS.
+/etc/services, usual values start at port 7000) and "/dev/modem"
+should be substituted by the appropriate device. The lock and the
+device name must match for correct interlocking with other
+programs. The tcpd program is the usual tcp wrapper that's not needed
+for correct operation but is useful for security purposes. Don't
+forget to send a SIGHUP to the inetd daemon in order to force reload
+of the configuration file. The initial -i paramater is optional and
+enables compatibility with the Cisco IOS.
 
-6 - Bugs
 
-Patches, bug reports, comments, improvements and anything else are welcome.
+Bugs
+----
 
-7 - Outstanding issues
+Report bugs using Bugzilla. A link is available from the sercd home page. 
+
+
+Outstanding issues
+------------------
 
 The RFC 2217 protocol is a rather complete protocol that provides a lot
 of features. Most of them are implemented in sredird but some seldom
 used options are missing:
 
- . does not properly check implement BREAK handling.  Need to figure
+ * does not properly check implement BREAK handling.  Need to figure
    out how to turn a BREAK on and then off based upon receipt of 
    COM-PORT Subnegotiations
 
- . does not properly use select to handle input, output and
+ * does not properly use select to handle input, output and
    errors on all devices.
 
- . Lack of login processing
+ * Lack of login processing
 
- . Lack of Telnet START_TLS to protect the data stream
+ * Lack of Telnet START_TLS to protect the data stream
 
- . Lack of Telnet AUTHENTICATION
+ * Lack of Telnet AUTHENTICATION
 
- . LineState processing is not implemented
+ * LineState processing is not implemented
 
- . The code probably won't compile on most versions of Unix due to the
+ * The code probably won't compile on most versions of Unix due to the
    highly platform dependent nature of the serial apis.
    The program has been tested only under Linux 2.0.36, gcc 2.7.2.1,
    libc5 and RedHat 5.2/7.1 but should work on any POSIX compliant 
    operating system.
 
- . Use of polling to notify change on the serial control lines is not
+ * Use of polling to notify change on the serial control lines is not
    desireable.  Anyone know of an event driven mechanism for discovering
    modem and line signal changes?
 
- . Better documentation and a man page would be useful.
 
-8 - Implementation Notes
 
- . Setting the port to 1.5 stop bits isn't supported. When requested,
+Implementation Notes
+--------------------
+
+ * Setting the port to 1.5 stop bits isn't supported. When requested,
    1 stop bit is set and returned as the response value.
 
- . Setting the parity to mark or space isn't supported.  When requested,
+ * Setting the parity to mark or space isn't supported.  When requested,
    Parity is set to None and returned as the response value.
 
- . DTR, DSR and DCD flow control isn't supported.  When requested, 
+ * DTR, DSR and DCD flow control isn't supported.  When requested, 
    flow control is disabled and "no flow control" is returned as the
    response value.
 
- . RFC 2217 supports the ability for the Input and Output Parity and
+ * RFC 2217 supports the ability for the Input and Output Parity and
    Flow control settings to be independent of each other.  This is not
    supported by the majority of serial port UARTs available on the market
-   and is not supported by sredird.  Sredird ignores all requests to set
+   and is not supported by sredird.  sercd ignores all requests to set
    the Input Parity and Flow control.  The Output values are used for 
    both input and output as specified in the RFC.
 
- . DialOut/IP V2 version 2.0.0 has a known bug that prevent it from 
+ * DialOut/IP V2 version 2.0.0 has a known bug that prevent it from 
    running at 115200 baud. If you ask for 115200 baud it sets the serial
    line at 9600 baud. It also has some other small bugs that cause it to
    crash or fail under some rare circumstances. Use Version 2.0.2 or 
    higher to avoid this problem.
 
-9 - Credits
+
+Credits
+-------
+
+sercd is based on sredird, which got help and support from several
+people and organizations:
+
 
 Thanks to David Yon and Mike Krueger of Tactical Software for their help
 in the sredird developing process. Thanks also to Tactical Software for
@@ -188,9 +167,6 @@ Tactical Software provides also some other useful communication tools
 and an RFC 2217 compliant server for the Windows environment. Browse
 http://www.tacticalsoftware.com for more information.
 
-Nordic Messaging Tech. AB provides a complete commercial RFC 2217
-compliant server for various operating systems including Linux. See
-http://www.nordicmessaging.com for more information.
 
 Implementation of the Telnet State Machines, corrections to RFC 2217,
 testing against various clients and comparison to hardware implementations
@@ -199,30 +175,20 @@ University.  The Kermit Project provides the only known client implementation
 of RFC 2217 for Unix in its C-Kermit and Kermit 95 Telnet clients.  See
 http://www.columbia.edu/kermit/ for further details.
 
-Thanks to Mario Viara for fixing some long lasting small bugs.
 
-Thanks to Russell Coker for providing a man page, a better makefile and
-some other small patches. 
+Resources
+---------
 
-10 - Commercial support
+* The freshmet.net listing:
 
-InfoTecna (http://www.infotecna.it) is a commercial company and
-provides commercial support for the sredird package. Sorry, but we really
-have no time to provide free support apart for bug correction.
+  http://freshmeat.net/projects/sercd
 
-The Kermit Project provides support for C-Kermit and will provide support
-for sredird when used in conjunction with Kermit software.
+
+* The sercd homepage:
+  
+  http://www.lysator.liu.se/~astrand/projects/sercd/
 
 
 --
+Peter Astrand <astrand@lysator.liu.se>
 
-  Denis Sbragion
-  InfoTecna
-  Tel, Fax: +39 0362 805396
-  URL: http://www.infotecna.it
-  E-Mail: d.sbragion@infotecna.it
-
-  Jeffrey Altman
-  Columbia University
-  URL:  http://www.columbia.edu/kermit/
-  E-mail: kermit-support@columbia.edu
