@@ -1,6 +1,6 @@
 /*
     sercd: RFC 2217 compliant serial port redirector
-    Version 2.2.0, 09 July 2003
+    Copyright (C) 2003 Cendio AB
     Copyright (C) 1999 - 2003 InfoTecna s.r.l.
     Copyright (C) 2001, 2002 Trustees of Columbia University
     in the City of New York
@@ -18,20 +18,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-    To contact the authors:
-
-      Denis Sbragion
-      InfoTecna
-      Tel, Fax: +39 0362 805396
-      URL: http://www.infotecna.it
-      E-Mail: d.sbragion@infotecna.it
-
-      Jeffrey Altman
-      The Kermit Project
-      Columbia University
-      URL: http://www.kermit-project.org/
-      E-mail: jaltman@columbia.edu
 
     Current design issues:
 
