@@ -54,15 +54,15 @@ bug in the handling of the inbound flow control.
 
 - At the end of the command line:
 
-Poll interval: sredird checks for line state changes (DSR/CTS/DCD/RNG)
+Poll interval: sercd checks for line state changes (DSR/CTS/DCD/RNG)
 on every single char sent on the serial line. To prevent losing state
-change when there's no traffic on the serial port, sredird also polls
+change when there's no traffic on the serial port, sercd also polls
 the line state when there's no traffic on the line for more than the
 poll interval. The value is in milliseconds and the default is 100
 milliseconds. Setting it to 0 disables the polling feature. This is
 also the maximum time data is left in the output buffer before sending
 it, even if the buffer isn't completely full, so the polling interval
-globally sets the maximum latency of any sredird action.
+globally sets the maximum latency of any sercd action.
 
 
 Installation
@@ -73,7 +73,7 @@ Put the executable in a suitable directory (/usr/sbin or
 line in the inetd configuration file (usually /etc/inetd.conf) should
 look like this:
 
-sredir          stream  tcp     nowait  root    /usr/sbin/tcpd /usr/sbin/sredird -i 5 /dev/modem /var/lock/LCK..modem
+sredir          stream  tcp     nowait  root    /usr/sbin/tcpd /usr/sbin/sercd -i 5 /dev/modem /var/lock/LCK..modem
 
 Of course, "sredir" should be defined in the services file (usually
 /etc/services, usual values start at port 7000) and "/dev/modem"
@@ -96,7 +96,7 @@ Outstanding issues
 ------------------
 
 The RFC 2217 protocol is a rather complete protocol that provides a lot
-of features. Most of them are implemented in sredird but some seldom
+of features. Most of them are implemented in sercd but some seldom
 used options are missing:
 
  * does not properly check implement BREAK handling.  Need to figure
@@ -142,7 +142,7 @@ Implementation Notes
  * RFC 2217 supports the ability for the Input and Output Parity and
    Flow control settings to be independent of each other.  This is not
    supported by the majority of serial port UARTs available on the market
-   and is not supported by sredird.  sercd ignores all requests to set
+   and is not supported by sercd.  sercd ignores all requests to set
    the Input Parity and Flow control.  The Output values are used for 
    both input and output as specified in the RFC.
 
