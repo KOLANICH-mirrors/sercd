@@ -1,6 +1,6 @@
 /*
     sercd: RFC 2217 compliant serial port redirector
-    Copyright (C) 2003 Cendio AB
+    Copyright (C) 2003 - 2005 Cendio AB
     Copyright (C) 1999 - 2003 InfoTecna s.r.l.
     Copyright (C) 2001, 2002 Trustees of Columbia University
     in the City of New York
