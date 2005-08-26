@@ -1153,7 +1153,7 @@ EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
 		    case IACNormal:
 			if (C == TNIAC)
 			    IACSigEscape = IACReceived;
-			else if (IACPos < TmpStrLen) {
+			else if (IACPos < sizeof(IACCommand)) {
 			    IACCommand[IACPos] = C;
 			    IACPos++;
 			}
@@ -1165,19 +1165,19 @@ EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
 
 		    case IACReceived:
 			if (C == TNIAC) {
-			    if (IACPos < TmpStrLen) {
+			    if (IACPos < sizeof(IACCommand)) {
 				IACCommand[IACPos] = C;
 				IACPos++;
 			    }
 			    IACSigEscape = IACNormal;
 			}
 			else {
-			    if (IACPos < TmpStrLen) {
+			    if (IACPos < sizeof(IACCommand)) {
 				IACCommand[IACPos] = TNIAC;
 				IACPos++;
 			    }
 
-			    if (IACPos < TmpStrLen) {
+			    if (IACPos < sizeof(IACCommand)) {
 				IACCommand[IACPos] = C;
 				IACPos++;
 			    }
