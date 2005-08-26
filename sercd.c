@@ -65,7 +65,7 @@
 #include <netinet/tcp.h>
 
 /* Version id */
-#define VersionId "2.3.1"
+#define VersionId "2.3.2"
 #define SercdVersionId "Version " VersionId
 
 /* Locking constants */
