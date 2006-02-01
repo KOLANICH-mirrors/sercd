@@ -1,2 +1,2 @@
 #!/bin/sh
-indent -i4 -br -npcs *.c
+indent -i4 -br -npcs -l 100 *.c
