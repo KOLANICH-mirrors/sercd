@@ -151,7 +151,8 @@
 
 /* Standard boolean definition */
 typedef enum
-{ False, True } Boolean;
+{ False, True }
+Boolean;
 
 /* Cisco IOS bug compatibility */
 Boolean CiscoIOSCompatible = False;
@@ -191,7 +192,8 @@ static int MaxLogLevel = LOG_DEBUG + 1;
 
 /* Status enumeration for IAC escaping and interpretation */
 typedef enum
-{ IACNormal, IACReceived, IACComReceiving } IACState;
+{ IACNormal, IACReceived, IACComReceiving }
+IACState;
 
 /* Effective status for IAC escaping and interpretation */
 static IACState IACEscape = IACNormal;
@@ -318,8 +320,7 @@ void SendSignature(BufferType * B, char *Sig);
 void EscWriteChar(BufferType * B, unsigned char C);
 
 /* Redirect char C to PortFd checking for IAC escape sequences */
-void EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
-		     unsigned char C);
+void EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd, unsigned char C);
 
 /* Send the specific telnet option to SockFd using Command as command */
 void SendTelnetOption(BufferType * B, unsigned char Command, char Option);
@@ -334,20 +335,16 @@ void SendBaudRate(BufferType * B, unsigned long int BR);
 void SendCPCFlowCommand(BufferType * B, unsigned char Command);
 
 /* Send the CPC command Command using Parm as parameter */
-void SendCPCByteCommand(BufferType * B, unsigned char Command,
-			unsigned char Parm);
+void SendCPCByteCommand(BufferType * B, unsigned char Command, unsigned char Parm);
 
 /* Handling of COM Port Control specific commands */
-void HandleCPCCommand(BufferType * B, int PortFd, unsigned char *Command,
-		      size_t CSize);
+void HandleCPCCommand(BufferType * B, int PortFd, unsigned char *Command, size_t CSize);
 
 /* Common telnet IAC commands handling */
-void HandleIACCommand(BufferType * B, int PortFd, unsigned char *Command,
-		      size_t CSize);
+void HandleIACCommand(BufferType * B, int PortFd, unsigned char *Command, size_t CSize);
 
 /* Write a buffer to SockFd with IAC escaping */
-void EscWriteBuffer(BufferType * B, unsigned char *Buffer,
-		    unsigned int BSize);
+void EscWriteBuffer(BufferType * B, unsigned char *Buffer, unsigned int BSize);
 
 /* initialize Telnet State Machine */
 void
@@ -440,9 +437,7 @@ HDBLockFile(char *LockFile, pid_t LockPid)
     char LogStr[TmpStrLen];
 
     /* Try to create the lock file */
-    while ((FileDes =
-	    open(LockFile, O_CREAT | O_WRONLY | O_EXCL,
-		 LockFileMode)) == OpenError) {
+    while ((FileDes = open(LockFile, O_CREAT | O_WRONLY | O_EXCL, LockFileMode)) == OpenError) {
 	/* Check the kind of error */
 	if ((errno == EEXIST)
 	    && ((FileDes = open(LockFile, O_RDONLY, 0)) != OpenError)) {
@@ -454,8 +449,7 @@ HDBLockFile(char *LockFile, pid_t LockPid)
 	    if (N <= 0) {
 		/* Emtpy lock file or error: may be another application
 		   was writing its pid in it */
-		snprintf(LogStr, sizeof(LogStr),
-			 "Can't read pid from lock file %s.", LockFile);
+		snprintf(LogStr, sizeof(LogStr), "Can't read pid from lock file %s.", LockFile);
 		LogStr[sizeof(LogStr) - 1] = '\0';
 		LogMsg(LOG_NOTICE, LogStr);
 
@@ -470,8 +464,7 @@ HDBLockFile(char *LockFile, pid_t LockPid)
 	    /* Check if it is our pid */
 	    if (Pid == LockPid) {
 		/* File already locked by us */
-		snprintf(LogStr, sizeof(LogStr), "Read our pid from lock %s.",
-			 LockFile);
+		snprintf(LogStr, sizeof(LogStr), "Read our pid from lock %s.", LockFile);
 		LogStr[sizeof(LogStr) - 1] = '\0';
 		LogMsg(LOG_DEBUG, LogStr);
 
@@ -485,23 +478,20 @@ HDBLockFile(char *LockFile, pid_t LockPid)
 		/* Invalid lock, remove it */
 		if (unlink(LockFile) == NoError) {
 		    snprintf(LogStr, sizeof(LogStr),
-			     "Removed stale lock %s (pid %d).", LockFile,
-			     Pid);
+			     "Removed stale lock %s (pid %d).", LockFile, Pid);
 		    LogStr[sizeof(LogStr) - 1] = '\0';
 		    LogMsg(LOG_NOTICE, LogStr);
 		}
 		else {
 		    snprintf(LogStr, sizeof(LogStr),
-			     "Couldn't remove stale lock %s (pid %d).",
-			     LockFile, Pid);
+			     "Couldn't remove stale lock %s (pid %d).", LockFile, Pid);
 		    LogStr[sizeof(LogStr) - 1] = '\0';
 		    LogMsg(LOG_ERR, LogStr);
 		    return (LockKo);
 		}
 	    else {
 		/* The lock file is owned by another valid process */
-		snprintf(LogStr, sizeof(LogStr),
-			 "Lock %s is owned by pid %d.", LockFile, Pid);
+		snprintf(LogStr, sizeof(LogStr), "Lock %s is owned by pid %d.", LockFile, Pid);
 		LogStr[sizeof(LogStr) - 1] = '\0';
 		LogMsg(LOG_INFO, LogStr);
 
@@ -511,8 +501,7 @@ HDBLockFile(char *LockFile, pid_t LockPid)
 	}
 	else {
 	    /* Lock file creation problem */
-	    snprintf(LogStr, sizeof(LogStr), "Can't create lock file %s.",
-		     LockFile);
+	    snprintf(LogStr, sizeof(LogStr), "Can't create lock file %s.", LockFile);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_ERR, LogStr);
 
@@ -529,8 +518,7 @@ HDBLockFile(char *LockFile, pid_t LockPid)
     if (write(FileDes, HDBBuffer, HDBHeaderLen) != HDBHeaderLen) {
 	/* Lock file creation problem, remove it */
 	close(FileDes);
-	snprintf(LogStr, sizeof(LogStr),
-		 "Can't write HDB header to lock file %s.", LockFile);
+	snprintf(LogStr, sizeof(LogStr), "Can't write HDB header to lock file %s.", LockFile);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_ERR, LogStr);
 	unlink(LockFile);
@@ -724,8 +712,7 @@ GetPortParity(int PortFd)
     if ((PortSettings.c_cflag & PARENB) == 0)
 	return ((unsigned char) 1);
 
-    if ((PortSettings.c_cflag & PARENB) != 0 &&
-	(PortSettings.c_cflag & PARODD) != 0)
+    if ((PortSettings.c_cflag & PARENB) != 0 && (PortSettings.c_cflag & PARODD) != 0)
 	return ((unsigned char) 2);
 
     return ((unsigned char) 3);
@@ -891,8 +878,7 @@ SetPortParity(int PortFd, unsigned char Parity)
 	break;
 	/* There's no support for MARK and SPACE parity so sets no parity */
     default:
-	LogMsg(LOG_WARNING,
-	       "Requested unsupported parity, set to no parity.");
+	LogMsg(LOG_WARNING, "Requested unsupported parity, set to no parity.");
 	PortSettings.c_cflag = PortSettings.c_cflag & ~PARENB;
 	break;
     }
@@ -917,8 +903,7 @@ SetPortStopSize(int PortFd, unsigned char StopSize)
 	break;
     case 3:
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
-	LogMsg(LOG_WARNING,
-	       "Requested unsupported 1.5 bits stop size, set to 1 bit stop size.");
+	LogMsg(LOG_WARNING, "Requested unsupported 1.5 bits stop size, set to 1 bit stop size.");
 	break;
     default:
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
@@ -1104,8 +1089,7 @@ EscWriteChar(BufferType * B, unsigned char C)
 
     if (C == TNIAC)
 	AddToBuffer(B, C);
-    else if (C != 0x0A && !tnstate[TN_TRANSMIT_BINARY].is_will
-	     && Last == 0x0D)
+    else if (C != 0x0A && !tnstate[TN_TRANSMIT_BINARY].is_will && Last == 0x0D)
 	AddToBuffer(B, 0x00);
     AddToBuffer(B, C);
 
@@ -1115,8 +1099,7 @@ EscWriteChar(BufferType * B, unsigned char C)
 
 /* Redirect char C to Device checking for IAC escape sequences */
 void
-EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
-		unsigned char C)
+EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd, unsigned char C)
 {
     /* Last received byte */
     static unsigned char Last = 0;
@@ -1127,8 +1110,7 @@ EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
     case IACNormal:
 	if (C == TNIAC)
 	    IACEscape = IACReceived;
-	else if (!tnstate[TN_TRANSMIT_BINARY].is_do && C == 0x00
-		 && Last == 0x0D)
+	else if (!tnstate[TN_TRANSMIT_BINARY].is_do && C == 0x00 && Last == 0x0D)
 	    /* Swallow the NUL after a CR if not receiving BINARY */
 	    break;
 	else
@@ -1197,8 +1179,7 @@ EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd,
 				IACPos++;
 			    }
 
-			    HandleIACCommand(SockB, PortFd, IACCommand,
-					     IACPos);
+			    HandleIACCommand(SockB, PortFd, IACCommand, IACPos);
 			    IACEscape = IACNormal;
 			}
 			break;
@@ -1335,8 +1316,7 @@ SendCPCByteCommand(BufferType * B, unsigned char Command, unsigned char Parm)
 
 /* Handling of COM Port Control specific commands */
 void
-HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
-		 size_t CSize)
+HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command, size_t CSize)
 {
     char LogStr[TmpStrLen];
     char SigStr[TmpStrLen];
@@ -1352,8 +1332,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
     case TNCAS_SIGNATURE:
 	if (CSize == 6) {
 	    /* Void signature, client is asking for our signature */
-	    snprintf(SigStr, sizeof(SigStr), "sercd %s %s", VersionId,
-		     DeviceName);
+	    snprintf(SigStr, sizeof(SigStr), "sercd %s %s", VersionId, DeviceName);
 	    LogStr[sizeof(SigStr) - 1] = '\0';
 	    SendSignature(SockB, SigStr);
 	    snprintf(LogStr, sizeof(LogStr), "Sent signature: %s", SigStr);
@@ -1362,10 +1341,8 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	}
 	else {
 	    /* Received client signature */
-	    strncpy(SigStr, (char *) &Command[4],
-		    MAX(CSize - 6, sizeof(SigStr) - 1));
-	    snprintf(LogStr, sizeof(LogStr) - 1,
-		     "Received client signature: %s", SigStr);
+	    strncpy(SigStr, (char *) &Command[4], MAX(CSize - 6, sizeof(SigStr) - 1));
+	    snprintf(LogStr, sizeof(LogStr) - 1, "Received client signature: %s", SigStr);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_INFO, LogStr);
 	}
@@ -1381,8 +1358,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	    LogMsg(LOG_DEBUG, "Baud rate notification received.");
 	else {
 	    /* Change the baud rate */
-	    snprintf(LogStr, sizeof(LogStr),
-		     "Port baud rate change to %lu requested.", BaudRate);
+	    snprintf(LogStr, sizeof(LogStr), "Port baud rate change to %lu requested.", BaudRate);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SetPortSpeed(PortFd, BaudRate);
@@ -1404,8 +1380,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	else {
 	    /* Set the data size */
 	    snprintf(LogStr, sizeof(LogStr),
-		     "Port data size change to %u requested.",
-		     (unsigned int) Command[4]);
+		     "Port data size change to %u requested.", (unsigned int) Command[4]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SetPortDataSize(PortFd, Command[4]);
@@ -1414,8 +1389,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	/* Send confirmation */
 	DataSize = GetPortDataSize(PortFd);
 	SendCPCByteCommand(SockB, TNASC_SET_DATASIZE, DataSize);
-	snprintf(LogStr, sizeof(LogStr), "Port data size: %u",
-		 (unsigned int) DataSize);
+	snprintf(LogStr, sizeof(LogStr), "Port data size: %u", (unsigned int) DataSize);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	break;
@@ -1428,8 +1402,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	else {
 	    /* Set the parity */
 	    snprintf(LogStr, sizeof(LogStr),
-		     "Port parity change to %u requested",
-		     (unsigned int) Command[4]);
+		     "Port parity change to %u requested", (unsigned int) Command[4]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SetPortParity(PortFd, Command[4]);
@@ -1438,8 +1411,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	/* Send confirmation */
 	Parity = GetPortParity(PortFd);
 	SendCPCByteCommand(SockB, TNASC_SET_PARITY, Parity);
-	snprintf(LogStr, sizeof(LogStr), "Port parity: %u",
-		 (unsigned int) Parity);
+	snprintf(LogStr, sizeof(LogStr), "Port parity: %u", (unsigned int) Parity);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	break;
@@ -1452,8 +1424,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	else {
 	    /* Set the stop size */
 	    snprintf(LogStr, sizeof(LogStr),
-		     "Port stop size change to %u requested.",
-		     (unsigned int) Command[4]);
+		     "Port stop size change to %u requested.", (unsigned int) Command[4]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SetPortStopSize(PortFd, Command[4]);
@@ -1462,8 +1433,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	/* Send confirmation */
 	StopSize = GetPortStopSize(PortFd);
 	SendCPCByteCommand(SockB, TNASC_SET_STOPSIZE, StopSize);
-	snprintf(LogStr, sizeof(LogStr), "Port stop size: %u",
-		 (unsigned int) StopSize);
+	snprintf(LogStr, sizeof(LogStr), "Port stop size: %u", (unsigned int) StopSize);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	break;
@@ -1480,8 +1450,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	    LogMsg(LOG_DEBUG, "Flow control notification requested.");
 	    FlowControl = GetPortFlowControl(PortFd, Command[4]);
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, FlowControl);
-	    snprintf(LogStr, sizeof(LogStr), "Port flow control: %u",
-		     (unsigned int) FlowControl);
+	    snprintf(LogStr, sizeof(LogStr), "Port flow control: %u", (unsigned int) FlowControl);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    break;
@@ -1503,8 +1472,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	default:
 	    /* Set the flow control */
 	    snprintf(LogStr, sizeof(LogStr),
-		     "Port flow control change to %u requested.",
-		     (unsigned int) Command[4]);
+		     "Port flow control change to %u requested.", (unsigned int) Command[4]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SetPortFlowControl(PortFd, Command[4]);
@@ -1520,8 +1488,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 		FlowControl = GetPortFlowControl(PortFd, 0);
 
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, FlowControl);
-	    snprintf(LogStr, sizeof(LogStr), "Port flow control: %u",
-		     (unsigned int) FlowControl);
+	    snprintf(LogStr, sizeof(LogStr), "Port flow control: %u", (unsigned int) FlowControl);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    break;
@@ -1530,8 +1497,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 	/* Set the line state mask */
     case TNCAS_SET_LINESTATE_MASK:
-	snprintf(LogStr, sizeof(LogStr), "Line state set to %u",
-		 (unsigned int) Command[4]);
+	snprintf(LogStr, sizeof(LogStr), "Line state set to %u", (unsigned int) Command[4]);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 
@@ -1542,8 +1508,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 	/* Set the modem state mask */
     case TNCAS_SET_MODEMSTATE_MASK:
-	snprintf(LogStr, sizeof(LogStr), "Modem state mask set to %u",
-		 (unsigned int) Command[4]);
+	snprintf(LogStr, sizeof(LogStr), "Modem state mask set to %u", (unsigned int) Command[4]);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	ModemStateMask = Command[4];
@@ -1552,8 +1517,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 	/* Port flush requested */
     case TNCAS_PURGE_DATA:
-	snprintf(LogStr, sizeof(LogStr), "Port flush %u requested.",
-		 (unsigned int) Command[4]);
+	snprintf(LogStr, sizeof(LogStr), "Port flush %u requested.", (unsigned int) Command[4]);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	switch (Command[4]) {
@@ -1588,8 +1552,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 	/* Unknown request */
     default:
-	snprintf(LogStr, sizeof(LogStr), "Unhandled request %u",
-		 (unsigned int) Command[3]);
+	snprintf(LogStr, sizeof(LogStr), "Unhandled request %u", (unsigned int) Command[3]);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
 	break;
@@ -1598,8 +1561,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 /* Common telnet IAC commands handling */
 void
-HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command,
-		 size_t CSize)
+HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command, size_t CSize)
 {
     char LogStr[TmpStrLen];
 
@@ -1714,8 +1676,7 @@ HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 
 	    /* Reject everything else */
 	default:
-	    snprintf(LogStr, sizeof(LogStr), "Rejecting option DO: %u",
-		     (unsigned int) Command[2]);
+	    snprintf(LogStr, sizeof(LogStr), "Rejecting option DO: %u", (unsigned int) Command[2]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	    SendTelnetOption(SockB, TNWONT, Command[2]);
@@ -1747,8 +1708,7 @@ HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command,
 	}
 	else {
 	    snprintf(LogStr, sizeof(LogStr),
-		     "Received rejection for option: %u",
-		     (unsigned int) Command[2]);
+		     "Received rejection for option: %u", (unsigned int) Command[2]);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
 	    LogMsg(LOG_DEBUG, LogStr);
 	}
@@ -1786,19 +1746,15 @@ Usage(void)
     puts("This program should be run only by the inetd superserver");
     puts("Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
     puts("-i indicates Cisco IOS Bug compatibility");
-    puts("Poll interval is in milliseconds, default is 100, "
-	 "0 means no polling");
+    puts("Poll interval is in milliseconds, default is 100, " "0 means no polling");
 
     /* Same on the system log */
     LogMsg(LOG_ERR, "sercd: RFC 2217 compliant serial port redirector.");
     LogMsg(LOG_ERR, SercdVersionId);
-    LogMsg(LOG_ERR,
-	   "This program should be run only by the inetd superserver.");
-    LogMsg(LOG_ERR,
-	   "Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
+    LogMsg(LOG_ERR, "This program should be run only by the inetd superserver.");
+    LogMsg(LOG_ERR, "Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
     LogMsg(LOG_ERR, "-i indicates Cisco IOS Bug compatibility");
-    LogMsg(LOG_ERR,
-	   "Poll interval is in milliseconds, default is 100, 0 means no polling.");
+    LogMsg(LOG_ERR, "Poll interval is in milliseconds, default is 100, 0 means no polling.");
 }
 
 /* Main function */
@@ -1936,8 +1892,7 @@ main(int argc, char *argv[])
     /* Try to lock the device */
     if (HDBLockFile(LockFileName, getpid()) != LockOk) {
 	/* Lock failed */
-	snprintf(LogStr, sizeof(LogStr), "Unable to lock %s. Exiting.",
-		 LockFileName);
+	snprintf(LogStr, sizeof(LogStr), "Unable to lock %s. Exiting.", LockFileName);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_NOTICE, LogStr);
 	return (Error);
@@ -1950,15 +1905,12 @@ main(int argc, char *argv[])
     }
 
     /* Open the device */
-    if ((DeviceFd =
-	 open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
+    if ((DeviceFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
 	/* Open failed */
-	snprintf(LogStr, sizeof(LogStr),
-		 "Device in use. Come back later.\r\n");
+	snprintf(LogStr, sizeof(LogStr), "Device in use. Come back later.\r\n");
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_ERR, LogStr);
-	snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.",
-		 DeviceName);
+	snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.", DeviceName);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_ERR, LogStr);
 	return (Error);
@@ -1984,10 +1936,8 @@ main(int argc, char *argv[])
     tcsetattr(DeviceFd, TCSANOW, &PortSettings);
 
     /* Reset the device fd to blocking mode */
-    if (fcntl(DeviceFd, F_SETFL, fcntl(DeviceFd, F_GETFL) & ~(O_NDELAY)) ==
-	OpenError)
-	LogMsg(LOG_ERR,
-	       "Unable to reset device to non blocking mode, ignoring.");
+    if (fcntl(DeviceFd, F_SETFL, fcntl(DeviceFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
+	LogMsg(LOG_ERR, "Unable to reset device to non blocking mode, ignoring.");
 
     /* Initialize the input buffer */
     InitBuffer(&ToDevBuf);
@@ -1998,13 +1948,10 @@ main(int argc, char *argv[])
      * correct functioning but only provides slightly worse behaviour
      */
     SockParm = IPTOS_LOWDELAY;
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable,
-	       sizeof(SockParmEnable));
+    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable, sizeof(SockParmEnable));
     setsockopt(STDIN_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_OOBINLINE, &SockParmEnable,
-	       sizeof(SockParmEnable));
-    setsockopt(STDOUT_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable,
-	       sizeof(SockParmEnable));
+    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_OOBINLINE, &SockParmEnable, sizeof(SockParmEnable));
+    setsockopt(STDOUT_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable, sizeof(SockParmEnable));
     setsockopt(STDOUT_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
 
     /* Make reads/writes unblocking */
@@ -2126,8 +2073,7 @@ main(int argc, char *argv[])
 	/* Check the port state and notify the client if it's changed */
 	if (TCPCEnabled == True && InputFlow == True) {
 	    if ((GetModemState(DeviceFd, ModemState) & ModemStateMask &
-		 ModemStateECMask) !=
-		(ModemState & ModemStateMask & ModemStateECMask)) {
+		 ModemStateECMask) != (ModemState & ModemStateMask & ModemStateECMask)) {
 		ModemState = GetModemState(DeviceFd, ModemState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
 				   (ModemState & ModemStateMask));
@@ -2139,11 +2085,9 @@ main(int argc, char *argv[])
 #ifdef COMMENT
 	    /* GetLineState() not yet implemented */
 	    if ((GetLineState(DeviceFd, LineState) & LineStateMask &
-		 LineStateECMask) !=
-		(LineState & LineStateMask & LineStateECMask)) {
+		 LineStateECMask) != (LineState & LineStateMask & LineStateECMask)) {
 		LineState = GetLineState(DeviceFd, LineState);
-		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE,
-				   (LineState & LineStateMask));
+		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE, (LineState & LineStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent line state: %u",
 			 (unsigned int) (LineState & LineStateMask));
 		LogStr[sizeof(LogStr) - 1] = '\0';
