@@ -23,6 +23,11 @@ RFC 2217 clients include:
  * HW Virtual Serial Port (for Windows 2000 and XP)
    <http://www.hw-group.com/products/hw_vsp/index_en.html>
 
+   Note: One person has reported success with this client, but others
+   have reported that client does NOT work correctly with sercd; nor
+   with other RFC2217 servers. As far as I can tell, the problem lies
+   in HW VSP; not in sercd. 
+
 
 Compilation
 -----------
