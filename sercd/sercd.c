@@ -157,6 +157,9 @@ Boolean;
 /* Cisco IOS bug compatibility */
 Boolean CiscoIOSCompatible = False;
 
+/* Log to stderr instead of syslog */
+Boolean StdErrLogging = False;
+
 /* Buffer structure */
 typedef struct
 {
@@ -421,8 +424,14 @@ of the syslog(3) system call */
 void
 LogMsg(int LogLevel, const char *const Msg)
 {
-    if (LogLevel <= MaxLogLevel)
-	syslog(LogLevel, "%s", Msg);
+    if (LogLevel <= MaxLogLevel) {
+	if (StdErrLogging) {
+	    fprintf(stderr, "%s\n", Msg);
+	}
+	else {
+	    syslog(LogLevel, "%s", Msg);
+	}
+    }
 }
 
 /* Try to lock the file given in LockFile as pid LockPid using the classical
@@ -1741,20 +1750,15 @@ void
 Usage(void)
 {
     /* Write little usage information */
-    puts("sercd: RFC 2217 compliant serial port redirector");
-    puts(SercdVersionId);
-    puts("This program should be run only by the inetd superserver");
-    puts("Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
-    puts("-i indicates Cisco IOS Bug compatibility");
-    puts("Poll interval is in milliseconds, default is 100, " "0 means no polling");
-
-    /* Same on the system log */
-    LogMsg(LOG_ERR, "sercd: RFC 2217 compliant serial port redirector.");
-    LogMsg(LOG_ERR, SercdVersionId);
-    LogMsg(LOG_ERR, "This program should be run only by the inetd superserver.");
-    LogMsg(LOG_ERR, "Usage: sercd [-i] <loglevel> <device> <lockfile> [pollingterval]");
-    LogMsg(LOG_ERR, "-i indicates Cisco IOS Bug compatibility");
-    LogMsg(LOG_ERR, "Poll interval is in milliseconds, default is 100, 0 means no polling.");
+    fprintf(stderr,
+	    "sercd %s: RFC 2217 compliant serial port redirector\n"
+	    "This program should be run only by the inetd superserver\n"
+	    "\n"
+	    "Usage: sercd [-ie] <loglevel> <device> <lockfile> [pollingterval]\n"
+	    "-i indicates Cisco IOS Bug compatibility\n"
+	    "-e send output to standard error instead of syslog\n"
+	    "Poll interval is in milliseconds, default is 100, \n"
+	    "0 means no polling\n", SercdVersionId);
 }
 
 /* Main function */
@@ -1807,17 +1811,8 @@ main(int argc, char *argv[])
     int argi = 1;
     int i;
 
-    /* Open the system log */
-    openlog("sercd", LOG_PID, LOG_USER);
-
-    /* Check the command line argument count */
-    if (argc < 4) {
-	Usage();
-	return (Error);
-    }
-
     /* Process optional switch arguments */
-    for (argi = 1; argv[argi][0] == '-' && argi < argc; argi++) {
+    for (argi = 1; argi < argc && argv[argi][0] == '-'; argi++) {
 	i = 1;
 	while (argv[argi][i]) {
 	    switch (argv[argi][i++]) {
@@ -1832,12 +1827,33 @@ main(int argc, char *argv[])
 		    CiscoIOSCompatible = True;
 		break;
 
+	    case 'e':
+		if (StdErrLogging) {
+		    /* Already set */
+		    Usage();
+		    return (Error);
+		}
+		else
+		    StdErrLogging = True;
+		break;
+
 	    default:
 		Usage();
 		return (Error);
 		break;
 	    }
 	}
+    }
+
+    /* Check the command line argument count */
+    if (argc < 4) {
+	Usage();
+	return (Error);
+    }
+
+    /* Open the system log */
+    if (!StdErrLogging) {
+	openlog("sercd", LOG_PID, LOG_USER);
     }
 
     /* Sets the log level */
