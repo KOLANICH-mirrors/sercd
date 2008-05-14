@@ -29,6 +29,8 @@ extern Boolean DeviceOpened;
 
 extern Boolean StdErrLogging;
 
+extern int MaxLogLevel;
+
 /* True after retrieving the initial settings from the serial port */
 static Boolean InitPortRetrieved = False;
 
@@ -704,6 +706,28 @@ ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
     }
 
     /* FIXME: A lot more */
+}
+
+void OpenLog()
+{
+    if (!StdErrLogging) {
+	openlog("sercd", LOG_PID, LOG_USER);
+    }
+}
+
+/* Generic log function with log level control. Uses the same log levels
+of the syslog(3) system call */
+void
+LogMsg(int LogLevel, const char *const Msg)
+{
+    if (LogLevel <= MaxLogLevel) {
+	if (StdErrLogging) {
+	    fprintf(stderr, "%s\n", Msg);
+	}
+	else {
+	    syslog(LogLevel, "%s", Msg);
+	}
+    }
 }
 
 #endif /* WIN32 */

@@ -56,7 +56,6 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <syslog.h>
 #include <termios.h>
 #include <termio.h>
 #include <sys/socket.h>
@@ -166,7 +165,7 @@ PORTHANDLE DeviceFd;
 Boolean TCPCEnabled = False;
 
 /* Maximum log level to log in the system log */
-static int MaxLogLevel = LOG_DEBUG + 1;
+int MaxLogLevel = LOG_DEBUG + 1;
 
 /* Status enumeration for IAC escaping and interpretation */
 typedef enum
@@ -286,6 +285,9 @@ void SetBreak(PORTHANDLE PortFd, int duration);
 /* Flush serial port */
 void SetFlush(PORTHANDLE PortFd, int selector);
 
+/* Open system log */
+void OpenLog();
+
 /* Initialize port */
 int OpenPort(const char *DeviceName, const char *LockFileName);
 
@@ -393,21 +395,6 @@ GetFromBuffer(BufferType * B)
     unsigned char C = B->Buffer[B->RdPos];
     B->RdPos = (B->RdPos + 1) % BufferSize;
     return (C);
-}
-
-/* Generic log function with log level control. Uses the same log levels
-of the syslog(3) system call */
-void
-LogMsg(int LogLevel, const char *const Msg)
-{
-    if (LogLevel <= MaxLogLevel) {
-	if (StdErrLogging) {
-	    fprintf(stderr, "%s\n", Msg);
-	}
-	else {
-	    syslog(LogLevel, "%s", Msg);
-	}
-    }
 }
 
 /* Function executed when the program exits */
@@ -1231,9 +1218,7 @@ main(int argc, char *argv[])
     }
 
     /* Open the system log */
-    if (!StdErrLogging) {
-	openlog("sercd", LOG_PID, LOG_USER);
-    }
+    OpenLog();
 
     /* Sets the log level */
     MaxLogLevel = atoi(argv[argi++]);
