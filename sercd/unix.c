@@ -488,6 +488,12 @@ SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
 }
 
+void
+SetBreak(PORTHANDLE PortFd, int duration)
+{
+    tcsendbreak(PortFd, 1);
+}
+
 /* Try to lock the file given in LockFile as pid LockPid using the classical
 HDB (ASCII) file locking scheme */
 static int
