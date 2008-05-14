@@ -2,7 +2,7 @@ AM_CFLAGS=-Wall
 
 sbin_PROGRAMS = sercd
 
-sercd_SOURCES = sercd.c
+sercd_SOURCES = sercd.c win.c unix.c
 
 man_MANS = sercd.8
 
