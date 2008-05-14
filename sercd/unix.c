@@ -708,7 +708,8 @@ ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
     /* FIXME: A lot more */
 }
 
-void OpenLog()
+void
+OpenLog()
 {
     if (!StdErrLogging) {
 	openlog("sercd", LOG_PID, LOG_USER);

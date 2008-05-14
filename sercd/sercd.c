@@ -44,18 +44,18 @@
 /* Return NoError, which is 0, on success */
 
 /* Standard library includes */
-#include <stdio.h> /* snprintf */
-#include <stdlib.h> /* atoi */
-#include <string.h> /* strlen */
-#include <unistd.h> /* close */
-#include <errno.h> /* errno */
-#include <time.h> /* CLOCKS_PER_SEC */
-#include <sys/times.h> /* clock_t */
-#include <sys/ioctl.h> /* ioctl */
-#include <signal.h> /* signal */
-#include <fcntl.h> /* open */
-#include <netinet/in.h> /* htonl */
-#include <netinet/ip.h> /* IPTOS_LOWDELAY */
+#include <stdio.h>		/* snprintf */
+#include <stdlib.h>		/* atoi */
+#include <string.h>		/* strlen */
+#include <unistd.h>		/* close */
+#include <errno.h>		/* errno */
+#include <time.h>		/* CLOCKS_PER_SEC */
+#include <sys/times.h>		/* clock_t */
+#include <sys/ioctl.h>		/* ioctl */
+#include <signal.h>		/* signal */
+#include <fcntl.h>		/* open */
+#include <netinet/in.h>		/* htonl */
+#include <netinet/ip.h>		/* IPTOS_LOWDELAY */
 #include "sercd.h"
 #include "unix.h"
 #include "win.h"
