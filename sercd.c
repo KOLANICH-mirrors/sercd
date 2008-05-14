@@ -71,25 +71,8 @@
 #define VersionId "2.3.2"
 #define SercdVersionId "Version " VersionId
 
-/* Locking constants */
-#define LockOk 0
-#define Locked 1
-#define LockKo 2
-
-/* Error conditions constants */
-#define NoError 0
-#define Error 1
-#define OpenError -1
-
-/* Maximum length of temporary strings */
-#define TmpStrLen 255
-
 /* Buffer size */
 #define BufferSize 2048
-
-/* File mode and file length for HDB (ASCII) stile lock file */
-#define LockFileMode 0644
-#define HDBHeaderLen 11
 
 /* Base Telnet protocol constants (STD 8) */
 #define TNSE ((unsigned char) 240)
@@ -264,13 +247,6 @@ unsigned char GetFromBuffer(BufferType * B);
 of the syslog(3) system call */
 void LogMsg(int LogLevel, const char *const Msg);
 
-/* Try to lock the file given in LockFile as pid LockPid using the classical
-HDB (ASCII) file locking scheme */
-int HDBLockFile(char *LockFile, pid_t LockPid);
-
-/* Remove the lock file created with HDBLockFile */
-void HDBUnlockFile(char *LockFile, pid_t LockPid);
-
 /* Function executed when the program exits */
 void ExitFunction(void);
 
@@ -313,6 +289,12 @@ void SetPortFlowControl(PORTHANDLE PortFd, unsigned char How);
 
 /* Set the serial port speed */
 void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
+
+/* Initialize port */
+int OpenPort(const char *DeviceName, const char *LockFileName);
+
+/* Close and uninit port */
+void ClosePort(const char *LockFileName);
 
 /* Send the signature Sig to the client */
 void SendSignature(BufferType * B, char *Sig);
@@ -432,131 +414,6 @@ LogMsg(int LogLevel, const char *const Msg)
     }
 }
 
-/* Try to lock the file given in LockFile as pid LockPid using the classical
-HDB (ASCII) file locking scheme */
-int
-HDBLockFile(char *LockFile, pid_t LockPid)
-{
-    pid_t Pid;
-    int FileDes;
-    int N;
-    char HDBBuffer[HDBHeaderLen + 1];
-    char LogStr[TmpStrLen];
-
-    /* Try to create the lock file */
-    while ((FileDes = open(LockFile, O_CREAT | O_WRONLY | O_EXCL, LockFileMode)) == OpenError) {
-	/* Check the kind of error */
-	if ((errno == EEXIST)
-	    && ((FileDes = open(LockFile, O_RDONLY, 0)) != OpenError)) {
-	    /* Read the HDB header from the existing lockfile */
-	    N = read(FileDes, HDBBuffer, HDBHeaderLen);
-	    close(FileDes);
-
-	    /* Check if the header has been read */
-	    if (N <= 0) {
-		/* Emtpy lock file or error: may be another application
-		   was writing its pid in it */
-		snprintf(LogStr, sizeof(LogStr), "Can't read pid from lock file %s.", LockFile);
-		LogStr[sizeof(LogStr) - 1] = '\0';
-		LogMsg(LOG_NOTICE, LogStr);
-
-		/* Lock process failed */
-		return (LockKo);
-	    }
-
-	    /* Gets the pid of the locking process */
-	    HDBBuffer[N] = '\0';
-	    Pid = atoi(HDBBuffer);
-
-	    /* Check if it is our pid */
-	    if (Pid == LockPid) {
-		/* File already locked by us */
-		snprintf(LogStr, sizeof(LogStr), "Read our pid from lock %s.", LockFile);
-		LogStr[sizeof(LogStr) - 1] = '\0';
-		LogMsg(LOG_DEBUG, LogStr);
-
-		/* Lock process succeded */
-		return (LockOk);
-	    }
-
-	    /* Check if hte HDB header is valid and if the locking process
-	       is still alive */
-	    if ((Pid == 0) || ((kill(Pid, 0) != 0) && (errno == ESRCH)))
-		/* Invalid lock, remove it */
-		if (unlink(LockFile) == NoError) {
-		    snprintf(LogStr, sizeof(LogStr),
-			     "Removed stale lock %s (pid %d).", LockFile, Pid);
-		    LogStr[sizeof(LogStr) - 1] = '\0';
-		    LogMsg(LOG_NOTICE, LogStr);
-		}
-		else {
-		    snprintf(LogStr, sizeof(LogStr),
-			     "Couldn't remove stale lock %s (pid %d).", LockFile, Pid);
-		    LogStr[sizeof(LogStr) - 1] = '\0';
-		    LogMsg(LOG_ERR, LogStr);
-		    return (LockKo);
-		}
-	    else {
-		/* The lock file is owned by another valid process */
-		snprintf(LogStr, sizeof(LogStr), "Lock %s is owned by pid %d.", LockFile, Pid);
-		LogStr[sizeof(LogStr) - 1] = '\0';
-		LogMsg(LOG_INFO, LogStr);
-
-		/* Lock process failed */
-		return (Locked);
-	    }
-	}
-	else {
-	    /* Lock file creation problem */
-	    snprintf(LogStr, sizeof(LogStr), "Can't create lock file %s.", LockFile);
-	    LogStr[sizeof(LogStr) - 1] = '\0';
-	    LogMsg(LOG_ERR, LogStr);
-
-	    /* Lock process failed */
-	    return (LockKo);
-	}
-    }
-
-    /* Prepare the HDB buffer with our pid */
-    snprintf(HDBBuffer, sizeof(HDBBuffer), "%10d\n", (int) LockPid);
-    LogStr[sizeof(HDBBuffer) - 1] = '\0';
-
-    /* Fill the lock file with the HDB buffer */
-    if (write(FileDes, HDBBuffer, HDBHeaderLen) != HDBHeaderLen) {
-	/* Lock file creation problem, remove it */
-	close(FileDes);
-	snprintf(LogStr, sizeof(LogStr), "Can't write HDB header to lock file %s.", LockFile);
-	LogStr[sizeof(LogStr) - 1] = '\0';
-	LogMsg(LOG_ERR, LogStr);
-	unlink(LockFile);
-
-	/* Lock process failed */
-	return (LockKo);
-    }
-
-    /* Closes the lock file */
-    close(FileDes);
-
-    /* Lock process succeded */
-    return (LockOk);
-}
-
-/* Remove the lock file created with HDBLockFile */
-void
-HDBUnlockFile(char *LockFile, pid_t LockPid)
-{
-    char LogStr[TmpStrLen];
-
-    /* Check if the lock file is still owned by us */
-    if (HDBLockFile(LockFile, LockPid) == LockOk) {
-	/* Remove the lock file */
-	unlink(LockFile);
-	snprintf(LogStr, sizeof(LogStr), "Unlocked lock file %s.", LockFile);
-	LogStr[sizeof(LogStr) - 1] = '\0';
-	LogMsg(LOG_NOTICE, LogStr);
-    }
-}
-
 /* Function executed when the program exits */
 void
 ExitFunction(void)
@@ -573,8 +430,7 @@ ExitFunction(void)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
 
-    /* Removes the lock file */
-    HDBUnlockFile(LockFileName, getpid());
+    ClosePort(LockFileName);
 
     /* Program termination notification */
     LogMsg(LOG_NOTICE, "sercd stopped.");
@@ -1460,20 +1316,8 @@ main(int argc, char *argv[])
     /* Register the function to be called on break condition */
     signal(SIGINT, BreakFunction);
 
-    /* Try to lock the device */
-    if (HDBLockFile(LockFileName, getpid()) != LockOk) {
-	/* Lock failed */
-	snprintf(LogStr, sizeof(LogStr), "Unable to lock %s. Exiting.", LockFileName);
-	LogStr[sizeof(LogStr) - 1] = '\0';
-	LogMsg(LOG_NOTICE, LogStr);
-	return (Error);
-    }
-    else {
-	/* Lock succeeded */
-	snprintf(LogStr, sizeof(LogStr), "Device %s locked.", DeviceName);
-	LogStr[sizeof(LogStr) - 1] = '\0';
-	LogMsg(LOG_INFO, LogStr);
-    }
+    if (OpenPort(DeviceName, LockFileName) == Error)
+	return Error;
 
     /* Open the device */
     if ((DeviceFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
