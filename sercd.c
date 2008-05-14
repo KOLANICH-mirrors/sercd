@@ -151,7 +151,7 @@ static char *DeviceName;
 Boolean DeviceOpened = False;
 
 /* Device file descriptor */
-PORTHANDLE DeviceFd;
+static PORTHANDLE DeviceFd;
 
 /* Com Port Control enabled flag */
 Boolean TCPCEnabled = False;
@@ -272,7 +272,7 @@ void SetFlush(PORTHANDLE PortFd, int selector);
 void PlatformInit();
 
 /* Initialize port */
-int OpenPort(const char *DeviceName, const char *LockFileName);
+int OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd);
 
 /* Close and uninit port */
 void ClosePort(PORTHANDLE PortFd, const char *LockFileName);
@@ -1235,7 +1235,7 @@ main(int argc, char *argv[])
     else
 	DeviceOpened = True;
 
-    if (OpenPort(DeviceName, LockFileName) == Error)
+    if (OpenPort(DeviceName, LockFileName, &DeviceFd) == Error)
 	return Error;
 
     /* Initialize the input buffer */

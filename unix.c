@@ -23,8 +23,6 @@
 
 extern Boolean BreakSignaled;
 
-extern PORTHANDLE DeviceFd;
-
 extern Boolean DeviceOpened;
 
 extern Boolean StdErrLogging;
@@ -641,7 +639,7 @@ HDBUnlockFile(const char *LockFile, pid_t LockPid)
 }
 
 int
-OpenPort(const char *DeviceName, const char *LockFileName)
+OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 {
     char LogStr[TmpStrLen];
     /* Actual port settings */
@@ -663,9 +661,9 @@ OpenPort(const char *DeviceName, const char *LockFileName)
     }
 
     /* Get the actual port settings */
-    tcgetattr(DeviceFd, &InitialPortSettings);
+    tcgetattr(*PortFd, &InitialPortSettings);
     InitPortRetrieved = True;
-    tcgetattr(DeviceFd, &PortSettings);
+    tcgetattr(*PortFd, &PortSettings);
 
     /* Set the serial port to raw mode */
     cfmakeraw(&PortSettings);
@@ -677,25 +675,25 @@ OpenPort(const char *DeviceName, const char *LockFileName)
     PortSettings.c_iflag = (PortSettings.c_iflag & ~IGNBRK) | BRKINT;
 
     /* Write the port settings to device */
-    tcsetattr(DeviceFd, TCSANOW, &PortSettings);
+    tcsetattr(*PortFd, TCSANOW, &PortSettings);
 
     /* Reset the device fd to blocking mode */
-    if (fcntl(DeviceFd, F_SETFL, fcntl(DeviceFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
+    if (fcntl(*PortFd, F_SETFL, fcntl(*PortFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
 	LogMsg(LOG_ERR, "Unable to reset device to non blocking mode, ignoring.");
 
     return NoError;
 }
 
 void
-ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
+ClosePort(PORTHANDLE PortFd, const char *LockFileName)
 {
     /* Restores initial port settings */
     if (InitPortRetrieved == True)
-	tcsetattr(DeviceFd, TCSANOW, &InitialPortSettings);
+	tcsetattr(PortFd, TCSANOW, &InitialPortSettings);
 
     /* Closes the device */
     if (DeviceOpened == True)
-	close(DeviceFd);
+	close(PortFd);
 
     /* Removes the lock file */
     HDBUnlockFile(LockFileName, getpid());
