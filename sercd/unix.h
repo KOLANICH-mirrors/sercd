@@ -8,6 +8,8 @@
 #ifndef SERCD_UNIX_H
 #define SERCD_UNIX_H
 
+#include <syslog.h>
+
 #define PORTHANDLE int
 
 #endif /* SERCD_UNIX_H */
