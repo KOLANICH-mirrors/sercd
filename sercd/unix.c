@@ -27,6 +27,8 @@ extern PORTHANDLE DeviceFd;
 
 extern Boolean DeviceOpened;
 
+extern Boolean StdErrLogging;
+
 /* True after retrieving the initial settings from the serial port */
 static Boolean InitPortRetrieved = False;
 
@@ -672,7 +674,9 @@ ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
     HDBUnlockFile(LockFileName, getpid());
 
     /* Closes the log */
-    closelog();
+    if (!StdErrLogging) {
+	closelog();
+    }
 
     /* FIXME: A lot more */
 }
