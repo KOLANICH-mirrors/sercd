@@ -23,6 +23,16 @@
 
 extern Boolean BreakSignaled;
 
+extern PORTHANDLE DeviceFd;
+
+extern Boolean DeviceOpened;
+
+/* True after retrieving the initial settings from the serial port */
+static Boolean InitPortRetrieved = False;
+
+/* Initial serial port settings */
+static struct termios InitialPortSettings;
+
 /* Locking constants */
 #define LockOk 0
 #define Locked 1
@@ -605,6 +615,8 @@ int
 OpenPort(const char *DeviceName, const char *LockFileName)
 {
     char LogStr[TmpStrLen];
+    /* Actual port settings */
+    struct termios PortSettings;
 
     /* Try to lock the device */
     if (HDBLockFile(LockFileName, getpid()) != LockOk) {
@@ -620,14 +632,47 @@ OpenPort(const char *DeviceName, const char *LockFileName)
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_INFO, LogStr);
     }
+
+    /* Get the actual port settings */
+    tcgetattr(DeviceFd, &InitialPortSettings);
+    InitPortRetrieved = True;
+    tcgetattr(DeviceFd, &PortSettings);
+
+    /* Set the serial port to raw mode */
+    cfmakeraw(&PortSettings);
+
+    /* Enable HANGUP on close and disable modem control line handling */
+    PortSettings.c_cflag = (PortSettings.c_cflag | HUPCL) | CLOCAL;
+
+    /* Enable break handling */
+    PortSettings.c_iflag = (PortSettings.c_iflag & ~IGNBRK) | BRKINT;
+
+    /* Write the port settings to device */
+    tcsetattr(DeviceFd, TCSANOW, &PortSettings);
+
+    /* Reset the device fd to blocking mode */
+    if (fcntl(DeviceFd, F_SETFL, fcntl(DeviceFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
+	LogMsg(LOG_ERR, "Unable to reset device to non blocking mode, ignoring.");
+
     return NoError;
 }
 
 void
-ClosePort(const char *LockFileName)
+ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
 {
+    /* Restores initial port settings */
+    if (InitPortRetrieved == True)
+	tcsetattr(DeviceFd, TCSANOW, &InitialPortSettings);
+
+    /* Closes the device */
+    if (DeviceOpened == True)
+	close(DeviceFd);
+
     /* Removes the lock file */
     HDBUnlockFile(LockFileName, getpid());
+
+    /* Closes the log */
+    closelog();
 
     /* FIXME: A lot more */
 }

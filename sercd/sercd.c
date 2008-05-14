@@ -165,12 +165,6 @@ PORTHANDLE DeviceFd;
 /* Com Port Control enabled flag */
 Boolean TCPCEnabled = False;
 
-/* True after retrieving the initial settings from the serial port */
-Boolean InitPortRetrieved = False;
-
-/* Initial serial port settings */
-struct termios InitialPortSettings;
-
 /* Maximum log level to log in the system log */
 static int MaxLogLevel = LOG_DEBUG + 1;
 
@@ -294,7 +288,7 @@ void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
 int OpenPort(const char *DeviceName, const char *LockFileName);
 
 /* Close and uninit port */
-void ClosePort(const char *LockFileName);
+void ClosePort(PORTHANDLE PortFd, const char *LockFileName);
 
 /* Send the signature Sig to the client */
 void SendSignature(BufferType * B, char *Sig);
@@ -418,25 +412,14 @@ LogMsg(int LogLevel, const char *const Msg)
 void
 ExitFunction(void)
 {
-    /* Restores initial port settings */
-    if (InitPortRetrieved == True)
-	tcsetattr(DeviceFd, TCSANOW, &InitialPortSettings);
-
-    /* Closes the device */
-    if (DeviceOpened == True)
-	close(DeviceFd);
-
     /* Closes the sockets */
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
 
-    ClosePort(LockFileName);
+    ClosePort(DeviceFd, LockFileName);
 
     /* Program termination notification */
     LogMsg(LOG_NOTICE, "sercd stopped.");
-
-    /* Closes the log */
-    closelog();
 }
 
 /* Function called on many signals */
@@ -1188,9 +1171,6 @@ main(int argc, char *argv[])
     /* Temporary string for logging */
     char LogStr[TmpStrLen];
 
-    /* Actual port settings */
-    struct termios PortSettings;
-
     /* Base timeout for stream reading */
     struct timeval BTimeout;
 
@@ -1316,9 +1296,6 @@ main(int argc, char *argv[])
     /* Register the function to be called on break condition */
     signal(SIGINT, BreakFunction);
 
-    if (OpenPort(DeviceName, LockFileName) == Error)
-	return Error;
-
     /* Open the device */
     if ((DeviceFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
 	/* Open failed */
@@ -1333,26 +1310,8 @@ main(int argc, char *argv[])
     else
 	DeviceOpened = True;
 
-    /* Get the actual port settings */
-    tcgetattr(DeviceFd, &InitialPortSettings);
-    InitPortRetrieved = True;
-    tcgetattr(DeviceFd, &PortSettings);
-
-    /* Set the serial port to raw mode */
-    cfmakeraw(&PortSettings);
-
-    /* Enable HANGUP on close and disable modem control line handling */
-    PortSettings.c_cflag = (PortSettings.c_cflag | HUPCL) | CLOCAL;
-
-    /* Enable break handling */
-    PortSettings.c_iflag = (PortSettings.c_iflag & ~IGNBRK) | BRKINT;
-
-    /* Write the port settings to device */
-    tcsetattr(DeviceFd, TCSANOW, &PortSettings);
-
-    /* Reset the device fd to blocking mode */
-    if (fcntl(DeviceFd, F_SETFL, fcntl(DeviceFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
-	LogMsg(LOG_ERR, "Unable to reset device to non blocking mode, ignoring.");
+    if (OpenPort(DeviceName, LockFileName) == Error)
+	return Error;
 
     /* Initialize the input buffer */
     InitBuffer(&ToDevBuf);
