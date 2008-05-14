@@ -50,7 +50,6 @@
 #include <unistd.h>		/* close */
 #include <errno.h>		/* errno */
 #include <time.h>		/* CLOCKS_PER_SEC */
-#include <sys/times.h>		/* clock_t */
 #include <sys/ioctl.h>		/* ioctl */
 #include <signal.h>		/* signal */
 #include <fcntl.h>		/* open */
@@ -1164,9 +1163,6 @@ main(int argc, char *argv[])
     /* Generic socket parameter */
     int SockParm;
 
-    /* Out buffer clock ticks limit */
-    clock_t MaxBTicks;
-
     /* Optional argument processing indexes */
     int argi = 1;
     int i;
@@ -1225,17 +1221,14 @@ main(int argc, char *argv[])
     if (argc == argi + 1) {
 	BTimeout.tv_sec = 0;
 	BTimeout.tv_usec = atol(argv[4]) * 1000;
-	MaxBTicks = (BTimeout.tv_usec * CLOCKS_PER_SEC) / (1000 * 1000);
 
 	if (BTimeout.tv_usec <= 0) {
 	    ETimeout = NULL;
-	    MaxBTicks = 0;
 	}
     }
     else {
 	BTimeout.tv_sec = 0;
 	BTimeout.tv_usec = ModemStatePolling * 1000;
-	MaxBTicks = (BTimeout.tv_usec * CLOCKS_PER_SEC) / (1000 * 1000);
     }
 
     /* Logs sercd start */
