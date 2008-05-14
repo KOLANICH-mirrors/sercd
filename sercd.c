@@ -63,6 +63,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include "unix.h"
+#include "win.h"
 
 /* Version id */
 #define VersionId "2.3.2"
@@ -179,7 +181,7 @@ static char *DeviceName;
 Boolean DeviceOpened = False;
 
 /* Device file descriptor */
-int DeviceFd;
+PORTHANDLE DeviceFd;
 
 /* Com Port Control enabled flag */
 Boolean TCPCEnabled = False;
@@ -283,38 +285,38 @@ void SignalFunction(int unused);
 void BreakFunction(int unused);
 
 /* Retrieves the port speed from PortFd */
-unsigned long int GetPortSpeed(int PortFd);
+unsigned long int GetPortSpeed(PORTHANDLE PortFd);
 
 /* Retrieves the data size from PortFd */
-unsigned char GetPortDataSize(int PortFd);
+unsigned char GetPortDataSize(PORTHANDLE PortFd);
 
 /* Retrieves the parity settings from PortFd */
-unsigned char GetPortParity(int PortFd);
+unsigned char GetPortParity(PORTHANDLE PortFd);
 
 /* Retrieves the stop bits size from PortFd */
-unsigned char GetPortStopSize(int PortFd);
+unsigned char GetPortStopSize(PORTHANDLE PortFd);
 
 /* Retrieves the flow control status, including DTR and RTS status,
 from PortFd */
-unsigned char GetPortFlowControl(int PortFd, unsigned char Which);
+unsigned char GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which);
 
 /* Return the status of the modem control lines (DCD, CTS, DSR, RNG) */
-unsigned char GetModemState(int PortFd, unsigned char PMState);
+unsigned char GetModemState(PORTHANDLE PortFd, unsigned char PMState);
 
 /* Set the serial port data size */
-void SetPortDataSize(int PortFd, unsigned char DataSize);
+void SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize);
 
 /* Set the serial port parity */
-void SetPortParity(int PortFd, unsigned char Parity);
+void SetPortParity(PORTHANDLE PortFd, unsigned char Parity);
 
 /* Set the serial port stop bits size */
-void SetPortStopSize(int PortFd, unsigned char StopSize);
+void SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize);
 
 /* Set the port flow control and DTR and RTS status */
-void SetPortFlowControl(int PortFd, unsigned char How);
+void SetPortFlowControl(PORTHANDLE PortFd, unsigned char How);
 
 /* Set the serial port speed */
-void SetPortSpeed(int PortFd, unsigned long BaudRate);
+void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
 
 /* Send the signature Sig to the client */
 void SendSignature(BufferType * B, char *Sig);
@@ -323,7 +325,7 @@ void SendSignature(BufferType * B, char *Sig);
 void EscWriteChar(BufferType * B, unsigned char C);
 
 /* Redirect char C to PortFd checking for IAC escape sequences */
-void EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd, unsigned char C);
+void EscRedirectChar(BufferType * SockB, BufferType * DevB, PORTHANDLE PortFd, unsigned char C);
 
 /* Send the specific telnet option to SockFd using Command as command */
 void SendTelnetOption(BufferType * B, unsigned char Command, char Option);
@@ -341,10 +343,10 @@ void SendCPCFlowCommand(BufferType * B, unsigned char Command);
 void SendCPCByteCommand(BufferType * B, unsigned char Command, unsigned char Parm);
 
 /* Handling of COM Port Control specific commands */
-void HandleCPCCommand(BufferType * B, int PortFd, unsigned char *Command, size_t CSize);
+void HandleCPCCommand(BufferType * B, PORTHANDLE PortFd, unsigned char *Command, size_t CSize);
 
 /* Common telnet IAC commands handling */
-void HandleIACCommand(BufferType * B, int PortFd, unsigned char *Command, size_t CSize);
+void HandleIACCommand(BufferType * B, PORTHANDLE PortFd, unsigned char *Command, size_t CSize);
 
 /* Write a buffer to SockFd with IAC escaping */
 void EscWriteBuffer(BufferType * B, unsigned char *Buffer, unsigned int BSize);
@@ -634,7 +636,7 @@ BreakFunction(int unused)
 
 /* Retrieves the port speed from PortFd */
 unsigned long int
-GetPortSpeed(int PortFd)
+GetPortSpeed(PORTHANDLE PortFd)
 {
     struct termios PortSettings;
     speed_t Speed;
@@ -688,7 +690,7 @@ GetPortSpeed(int PortFd)
 
 /* Retrieves the data size from PortFd */
 unsigned char
-GetPortDataSize(int PortFd)
+GetPortDataSize(PORTHANDLE PortFd)
 {
     struct termios PortSettings;
     tcflag_t DataSize;
@@ -712,7 +714,7 @@ GetPortDataSize(int PortFd)
 
 /* Retrieves the parity settings from PortFd */
 unsigned char
-GetPortParity(int PortFd)
+GetPortParity(PORTHANDLE PortFd)
 {
     struct termios PortSettings;
 
@@ -729,7 +731,7 @@ GetPortParity(int PortFd)
 
 /* Retrieves the stop bits size from PortFd */
 unsigned char
-GetPortStopSize(int PortFd)
+GetPortStopSize(PORTHANDLE PortFd)
 {
     struct termios PortSettings;
 
@@ -744,7 +746,7 @@ GetPortStopSize(int PortFd)
 /* Retrieves the flow control status, including DTR and RTS status,
 from PortFd */
 unsigned char
-GetPortFlowControl(int PortFd, unsigned char Which)
+GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 {
     struct termios PortSettings;
     int MLines;
@@ -809,7 +811,7 @@ GetPortFlowControl(int PortFd, unsigned char Which)
 
 /* Return the status of the modem control lines (DCD, CTS, DSR, RNG) */
 unsigned char
-GetModemState(int PortFd, unsigned char PMState)
+GetModemState(PORTHANDLE PortFd, unsigned char PMState)
 {
     int MLines;
     unsigned char MState = (unsigned char) 0;
@@ -838,7 +840,7 @@ GetModemState(int PortFd, unsigned char PMState)
 
 /* Set the serial port data size */
 void
-SetPortDataSize(int PortFd, unsigned char DataSize)
+SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
 {
     struct termios PortSettings;
     tcflag_t PDataSize;
@@ -869,7 +871,7 @@ SetPortDataSize(int PortFd, unsigned char DataSize)
 
 /* Set the serial port parity */
 void
-SetPortParity(int PortFd, unsigned char Parity)
+SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
 {
     struct termios PortSettings;
 
@@ -897,7 +899,7 @@ SetPortParity(int PortFd, unsigned char Parity)
 
 /* Set the serial port stop bits size */
 void
-SetPortStopSize(int PortFd, unsigned char StopSize)
+SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
 {
     struct termios PortSettings;
 
@@ -924,7 +926,7 @@ SetPortStopSize(int PortFd, unsigned char StopSize)
 
 /* Set the port flow control and DTR and RTS status */
 void
-SetPortFlowControl(int PortFd, unsigned char How)
+SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 {
     struct termios PortSettings;
     int MLines;
@@ -1001,7 +1003,7 @@ SetPortFlowControl(int PortFd, unsigned char How)
 
 /* Set the serial port speed */
 void
-SetPortSpeed(int PortFd, unsigned long BaudRate)
+SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
 {
     struct termios PortSettings;
     speed_t Speed;
@@ -1108,7 +1110,7 @@ EscWriteChar(BufferType * B, unsigned char C)
 
 /* Redirect char C to Device checking for IAC escape sequences */
 void
-EscRedirectChar(BufferType * SockB, BufferType * DevB, int PortFd, unsigned char C)
+EscRedirectChar(BufferType * SockB, BufferType * DevB, PORTHANDLE PortFd, unsigned char C)
 {
     /* Last received byte */
     static unsigned char Last = 0;
@@ -1325,7 +1327,7 @@ SendCPCByteCommand(BufferType * B, unsigned char Command, unsigned char Parm)
 
 /* Handling of COM Port Control specific commands */
 void
-HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command, size_t CSize)
+HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, size_t CSize)
 {
     char LogStr[TmpStrLen];
     char SigStr[TmpStrLen];
@@ -1570,7 +1572,7 @@ HandleCPCCommand(BufferType * SockB, int PortFd, unsigned char *Command, size_t 
 
 /* Common telnet IAC commands handling */
 void
-HandleIACCommand(BufferType * SockB, int PortFd, unsigned char *Command, size_t CSize)
+HandleIACCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, size_t CSize)
 {
     char LogStr[TmpStrLen];
 
