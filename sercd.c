@@ -283,6 +283,9 @@ void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
 /* Serial port break */
 void SetBreak(PORTHANDLE PortFd, int duration);
 
+/* Flush serial port */
+void SetFlush(PORTHANDLE PortFd, int selector);
+
 /* Initialize port */
 int OpenPort(const char *DeviceName, const char *LockFileName);
 
@@ -922,21 +925,7 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	snprintf(LogStr, sizeof(LogStr), "Port flush %u requested.", (unsigned int) Command[4]);
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_DEBUG, LogStr);
-	switch (Command[4]) {
-	    /* Inbound flush */
-	case 1:
-	    tcflush(PortFd, TCIFLUSH);
-	    break;
-	    /* Outbound flush */
-	case 2:
-	    tcflush(PortFd, TCOFLUSH);
-	    break;
-	    /* Inbound/outbound flush */
-	case 3:
-	    tcflush(PortFd, TCIOFLUSH);
-	    break;
-	}
-
+	SetFlush(PortFd, Command[4]);
 	SendCPCByteCommand(SockB, TNASC_PURGE_DATA, Command[4]);
 	break;
 
