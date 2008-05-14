@@ -19,4 +19,10 @@ Boolean;
 of the syslog(3) system call */
 void LogMsg(int LogLevel, const char *const Msg);
 
+/* Function executed when the program exits */
+void ExitFunction(void);
+
+/* Function called on break signal */
+void BreakFunction(int unused);
+
 #endif /* SERCD_H */

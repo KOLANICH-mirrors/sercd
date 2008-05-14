@@ -51,7 +51,6 @@
 #include <errno.h>		/* errno */
 #include <time.h>		/* CLOCKS_PER_SEC */
 #include <sys/ioctl.h>		/* ioctl */
-#include <signal.h>		/* signal */
 #include <fcntl.h>		/* open */
 #include <netinet/in.h>		/* htonl */
 #include <netinet/ip.h>		/* IPTOS_LOWDELAY */
@@ -229,15 +228,6 @@ void AddToBuffer(BufferType * B, unsigned char C);
 /* Get a byte from a buffer */
 unsigned char GetFromBuffer(BufferType * B);
 
-/* Function executed when the program exits */
-void ExitFunction(void);
-
-/* Function called on many signals */
-void SignalFunction(int unused);
-
-/* Function called on break signal */
-void BreakFunction(int unused);
-
 /* Retrieves the port speed from PortFd */
 unsigned long int GetPortSpeed(PORTHANDLE PortFd);
 
@@ -278,8 +268,8 @@ void SetBreak(PORTHANDLE PortFd, int duration);
 /* Flush serial port */
 void SetFlush(PORTHANDLE PortFd, int selector);
 
-/* Open system log */
-void OpenLog();
+/* Init platform subsystems, such as the syslog */
+void PlatformInit();
 
 /* Initialize port */
 int OpenPort(const char *DeviceName, const char *LockFileName);
@@ -402,19 +392,6 @@ ExitFunction(void)
 
     /* Program termination notification */
     LogMsg(LOG_NOTICE, "sercd stopped.");
-}
-
-/* Function called on many signals */
-void
-SignalFunction(int unused)
-{
-    /* Just to avoid compilation warnings */
-    /* There's no performance penalty in doing this 
-       because this function is almost never called */
-    unused = unused;
-
-    /* Same as the exit function */
-    ExitFunction();
 }
 
 /* Function called on break signal */
@@ -1207,9 +1184,6 @@ main(int argc, char *argv[])
 	return (Error);
     }
 
-    /* Open the system log */
-    OpenLog();
-
     /* Sets the log level */
     MaxLogLevel = atoi(argv[argi++]);
 
@@ -1231,6 +1205,8 @@ main(int argc, char *argv[])
 	BTimeout.tv_usec = ModemStatePolling * 1000;
     }
 
+    PlatformInit();
+
     /* Logs sercd start */
     LogMsg(LOG_NOTICE, "sercd started.");
 
@@ -1244,17 +1220,6 @@ main(int argc, char *argv[])
 	     (unsigned int) (BTimeout.tv_usec / 1000));
     LogStr[sizeof(LogStr) - 1] = '\0';
     LogMsg(LOG_INFO, LogStr);
-
-    /* Register exit and signal handler functions */
-    atexit(ExitFunction);
-    signal(SIGHUP, SignalFunction);
-    signal(SIGQUIT, SignalFunction);
-    signal(SIGABRT, SignalFunction);
-    signal(SIGPIPE, SignalFunction);
-    signal(SIGTERM, SignalFunction);
-
-    /* Register the function to be called on break condition */
-    signal(SIGINT, BreakFunction);
 
     /* Open the device */
     if ((DeviceFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
