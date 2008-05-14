@@ -237,10 +237,6 @@ void AddToBuffer(BufferType * B, unsigned char C);
 /* Get a byte from a buffer */
 unsigned char GetFromBuffer(BufferType * B);
 
-/* Generic log function with log level control. Uses the same log levels
-of the syslog(3) system call */
-void LogMsg(int LogLevel, const char *const Msg);
-
 /* Function executed when the program exits */
 void ExitFunction(void);
 
