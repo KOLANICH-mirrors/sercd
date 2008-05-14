@@ -280,6 +280,9 @@ void SetPortFlowControl(PORTHANDLE PortFd, unsigned char How);
 /* Set the serial port speed */
 void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
 
+/* Serial port break */
+void SetBreak(PORTHANDLE PortFd, int duration);
+
 /* Initialize port */
 int OpenPort(const char *DeviceName, const char *LockFileName);
 
@@ -856,7 +859,7 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 
 	case 5:
 	    /* Break command */
-	    tcsendbreak(PortFd, 1);
+	    SetBreak(PortFd, 1);
 	    BreakSignaled = True;
 	    LogMsg(LOG_DEBUG, "Break Signal ON.");
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, Command[4]);
