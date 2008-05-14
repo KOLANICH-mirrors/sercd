@@ -10,6 +10,7 @@
 
 #include <termios.h>
 #include <termio.h>
+#include <syslog.h>
 
 extern Boolean BreakSignaled;
 
@@ -187,5 +188,275 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	break;
     }
 }
+
+/* Return the status of the modem control lines (DCD, CTS, DSR, RNG) */
+unsigned char
+GetModemState(PORTHANDLE PortFd, unsigned char PMState)
+{
+    int MLines;
+    unsigned char MState = (unsigned char) 0;
+
+    ioctl(PortFd, TIOCMGET, &MLines);
+
+    if ((MLines & TIOCM_CAR) != 0)
+	MState += (unsigned char) 128;
+    if ((MLines & TIOCM_RNG) != 0)
+	MState += (unsigned char) 64;
+    if ((MLines & TIOCM_DSR) != 0)
+	MState += (unsigned char) 32;
+    if ((MLines & TIOCM_CTS) != 0)
+	MState += (unsigned char) 16;
+    if ((MState & 128) != (PMState & 128))
+	MState += (unsigned char) 8;
+    if ((MState & 64) != (PMState & 64))
+	MState += (unsigned char) 4;
+    if ((MState & 32) != (PMState & 32))
+	MState += (unsigned char) 2;
+    if ((MState & 16) != (PMState & 16))
+	MState += (unsigned char) 1;
+
+    return (MState);
+}
+
+/* Set the serial port data size */
+void
+SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
+{
+    struct termios PortSettings;
+    tcflag_t PDataSize;
+
+    switch (DataSize) {
+    case 5:
+	PDataSize = CS5;
+	break;
+    case 6:
+	PDataSize = CS6;
+	break;
+    case 7:
+	PDataSize = CS7;
+	break;
+    case 8:
+	PDataSize = CS8;
+	break;
+    default:
+	PDataSize = CS8;
+	break;
+    }
+
+    tcgetattr(PortFd, &PortSettings);
+    PortSettings.c_cflag &= ~CSIZE;
+    PortSettings.c_cflag |= PDataSize & CSIZE;
+    tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+}
+
+/* Set the serial port parity */
+void
+SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
+{
+    struct termios PortSettings;
+
+    tcgetattr(PortFd, &PortSettings);
+
+    switch (Parity) {
+    case 1:
+	PortSettings.c_cflag = PortSettings.c_cflag & ~PARENB;
+	break;
+    case 2:
+	PortSettings.c_cflag = PortSettings.c_cflag | PARENB | PARODD;
+	break;
+    case 3:
+	PortSettings.c_cflag = (PortSettings.c_cflag | PARENB) & ~PARODD;
+	break;
+	/* There's no support for MARK and SPACE parity so sets no parity */
+    default:
+	LogMsg(LOG_WARNING, "Requested unsupported parity, set to no parity.");
+	PortSettings.c_cflag = PortSettings.c_cflag & ~PARENB;
+	break;
+    }
+
+    tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+}
+
+/* Set the serial port stop bits size */
+void
+SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
+{
+    struct termios PortSettings;
+
+    tcgetattr(PortFd, &PortSettings);
+
+    switch (StopSize) {
+    case 1:
+	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
+	break;
+    case 2:
+	PortSettings.c_cflag = PortSettings.c_cflag | CSTOPB;
+	break;
+    case 3:
+	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
+	LogMsg(LOG_WARNING, "Requested unsupported 1.5 bits stop size, set to 1 bit stop size.");
+	break;
+    default:
+	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
+	break;
+    }
+
+    tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+}
+
+/* Set the port flow control and DTR and RTS status */
+void
+SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
+{
+    struct termios PortSettings;
+    int MLines;
+
+    /* Gets the base status from the port */
+    tcgetattr(PortFd, &PortSettings);
+    ioctl(PortFd, TIOCMGET, &MLines);
+
+    /* Check which settings to change */
+    switch (How) {
+	/* No Flow Control (outbound/both) */
+    case 1:
+	PortSettings.c_iflag = PortSettings.c_iflag & ~IXON;
+	PortSettings.c_iflag = PortSettings.c_iflag & ~IXOFF;
+	PortSettings.c_cflag = PortSettings.c_cflag & ~CRTSCTS;
+	break;
+	/* XON/XOFF Flow Control (outbound/both) */
+    case 2:
+	PortSettings.c_iflag = PortSettings.c_iflag | IXON;
+	PortSettings.c_iflag = PortSettings.c_iflag | IXOFF;
+	PortSettings.c_cflag = PortSettings.c_cflag & ~CRTSCTS;
+	break;
+	/* HARDWARE Flow Control (outbound/both) */
+    case 3:
+	PortSettings.c_iflag = PortSettings.c_iflag & ~IXON;
+	PortSettings.c_iflag = PortSettings.c_iflag & ~IXOFF;
+	PortSettings.c_cflag = PortSettings.c_cflag | CRTSCTS;
+	break;
+	/* BREAK State ON */
+    case 5:
+	tcsendbreak(PortFd, 1);
+	BreakSignaled = True;
+	break;
+	/* BREAK State OFF */
+    case 6:
+	/* Should not send another break */
+	/* tcsendbreak(PortFd,0); */
+	BreakSignaled = False;
+	break;
+	/* DTR Signal State ON */
+    case 8:
+	MLines = MLines | TIOCM_DTR;
+	break;
+	/* DTR Signal State OFF */
+    case 9:
+	MLines = MLines & ~TIOCM_DTR;
+	break;
+	/* RTS Signal State ON */
+    case 11:
+	MLines = MLines | TIOCM_RTS;
+	break;
+	/* RTS Signal State OFF */
+    case 12:
+	MLines = MLines & ~TIOCM_RTS;
+	break;
+
+	/* INBOUND FLOW CONTROL is ignored */
+	/* No Flow Control (inbound) */
+    case 14:
+	/* XON/XOFF Flow Control (inbound) */
+    case 15:
+	/* HARDWARE Flow Control (inbound) */
+    case 16:
+	LogMsg(LOG_WARNING, "Inbound flow control ignored.");
+	break;
+    default:
+	LogMsg(LOG_WARNING, "Requested unsupported flow control.");
+	break;
+    }
+
+    tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+    ioctl(PortFd, TIOCMSET, &MLines);
+}
+
+/* Set the serial port speed */
+void
+SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
+{
+    struct termios PortSettings;
+    speed_t Speed;
+
+    switch (BaudRate) {
+    case 50UL:
+	Speed = B50;
+	break;
+    case 75UL:
+	Speed = B75;
+	break;
+    case 110UL:
+	Speed = B110;
+	break;
+    case 134UL:
+	Speed = B134;
+	break;
+    case 150UL:
+	Speed = B150;
+	break;
+    case 200UL:
+	Speed = B200;
+	break;
+    case 300UL:
+	Speed = B300;
+	break;
+    case 600UL:
+	Speed = B600;
+	break;
+    case 1200UL:
+	Speed = B1200;
+	break;
+    case 1800UL:
+	Speed = B1800;
+	break;
+    case 2400UL:
+	Speed = B2400;
+	break;
+    case 4800UL:
+	Speed = B4800;
+	break;
+    case 9600UL:
+	Speed = B9600;
+	break;
+    case 19200UL:
+	Speed = B19200;
+	break;
+    case 38400UL:
+	Speed = B38400;
+	break;
+    case 57600UL:
+	Speed = B57600;
+	break;
+    case 115200UL:
+	Speed = B115200;
+	break;
+    case 230400UL:
+	Speed = B230400;
+	break;
+    case 460800UL:
+	Speed = B460800;
+	break;
+    default:
+	LogMsg(LOG_WARNING, "Unknwon baud rate requested, setting to 9600.");
+	Speed = B9600;
+	break;
+    }
+
+    tcgetattr(PortFd, &PortSettings);
+    cfsetospeed(&PortSettings, Speed);
+    cfsetispeed(&PortSettings, Speed);
+    tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+}
+
 
 #endif /* WIN32 */
