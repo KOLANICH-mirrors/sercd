@@ -708,12 +708,36 @@ ClosePort(PORTHANDLE DeviceFd, const char *LockFileName)
     /* FIXME: A lot more */
 }
 
+/* Function called on many signals */
+static void
+SignalFunction(int unused)
+{
+    /* Just to avoid compilation warnings */
+    /* There's no performance penalty in doing this 
+       because this function is almost never called */
+    unused = unused;
+
+    /* Same as the exit function */
+    ExitFunction();
+}
+
 void
-OpenLog()
+PlatformInit()
 {
     if (!StdErrLogging) {
 	openlog("sercd", LOG_PID, LOG_USER);
     }
+
+    /* Register exit and signal handler functions */
+    atexit(ExitFunction);
+    signal(SIGHUP, SignalFunction);
+    signal(SIGQUIT, SignalFunction);
+    signal(SIGABRT, SignalFunction);
+    signal(SIGPIPE, SignalFunction);
+    signal(SIGTERM, SignalFunction);
+
+    /* Register the function to be called on break condition */
+    signal(SIGINT, BreakFunction);
 }
 
 /* Generic log function with log level control. Uses the same log levels
