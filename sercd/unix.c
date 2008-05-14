@@ -494,6 +494,25 @@ SetBreak(PORTHANDLE PortFd, int duration)
     tcsendbreak(PortFd, 1);
 }
 
+void
+SetFlush(PORTHANDLE PortFd, int selector)
+{
+    switch (selector) {
+	/* Inbound flush */
+    case 1:
+	tcflush(PortFd, TCIFLUSH);
+	break;
+	/* Outbound flush */
+    case 2:
+	tcflush(PortFd, TCOFLUSH);
+	break;
+	/* Inbound/outbound flush */
+    case 3:
+	tcflush(PortFd, TCIOFLUSH);
+	break;
+    }
+}
+
 /* Try to lock the file given in LockFile as pid LockPid using the classical
 HDB (ASCII) file locking scheme */
 static int
