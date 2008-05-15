@@ -1232,12 +1232,17 @@ main(int argc, char *argv[])
      * doesn't check if anything fails because failure doesn't prevent
      * correct functioning but only provides slightly worse behaviour
      */
+    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_OOBINLINE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+    setsockopt(STDOUT_FILENO, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+#ifndef WIN32
     SockParm = IPTOS_LOWDELAY;
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable, sizeof(SockParmEnable));
     setsockopt(STDIN_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_OOBINLINE, &SockParmEnable, sizeof(SockParmEnable));
-    setsockopt(STDOUT_FILENO, SOL_SOCKET, SO_KEEPALIVE, &SockParmEnable, sizeof(SockParmEnable));
     setsockopt(STDOUT_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
+#endif
 
     /* Make reads/writes unblocking */
     ioctl(STDOUT_FILENO, FIONBIO, &SockParmEnable);
