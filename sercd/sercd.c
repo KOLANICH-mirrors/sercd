@@ -1102,7 +1102,7 @@ Usage(void)
 
 /* Main function */
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
     /* Input fd set */
     fd_set InFdSet;
@@ -1140,61 +1140,39 @@ main(int argc, char *argv[])
     /* Generic socket parameter */
     int SockParm;
 
-    /* Optional argument processing indexes */
-    int argi = 1;
-    int i;
+    int opt = 0;
+    char *optstring = "ie";
 
-    /* Process optional switch arguments */
-    for (argi = 1; argi < argc && argv[argi][0] == '-'; argi++) {
-	i = 1;
-	while (argv[argi][i]) {
-	    switch (argv[argi][i++]) {
-		/* Cisco IOS compatibility */
-	    case 'i':
-		if (CiscoIOSCompatible) {
-		    /* Already set */
-		    Usage();
-		    return (Error);
-		}
-		else
-		    CiscoIOSCompatible = True;
-		break;
-
-	    case 'e':
-		if (StdErrLogging) {
-		    /* Already set */
-		    Usage();
-		    return (Error);
-		}
-		else
-		    StdErrLogging = True;
-		break;
-
-	    default:
-		Usage();
-		return (Error);
-		break;
-	    }
+    while (opt != -1) {
+	opt = getopt(argc, argv, optstring);
+	switch (opt) {
+	    /* Cisco IOS compatibility */
+	case 'i':
+	    CiscoIOSCompatible = True;
+	    break;
+	case 'e':
+	    StdErrLogging = True;
+	    break;
 	}
     }
 
     /* Check the command line argument count */
-    if (argc < 4) {
+    if (argc - optind < 3 || argc - optind > 4) {
 	Usage();
 	return (Error);
     }
 
     /* Sets the log level */
-    MaxLogLevel = atoi(argv[argi++]);
+    MaxLogLevel = atoi(argv[optind++]);
 
     /* Gets device and lock file names */
-    DeviceName = argv[argi++];
-    LockFileName = argv[argi++];
+    DeviceName = argv[optind++];
+    LockFileName = argv[optind++];
 
     /* Retrieve the polling interval */
-    if (argc == argi + 1) {
+    if (optind < argc) {
 	BTimeout.tv_sec = 0;
-	BTimeout.tv_usec = atol(argv[4]) * 1000;
+	BTimeout.tv_usec = atol(argv[optind++]) * 1000;
 
 	if (BTimeout.tv_usec <= 0) {
 	    ETimeout = NULL;
