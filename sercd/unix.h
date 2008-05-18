@@ -12,5 +12,7 @@
 
 #define PORTHANDLE int
 
+#define SERCD_SOCKET int
+
 #endif /* SERCD_UNIX_H */
 #endif /* WIN32 */

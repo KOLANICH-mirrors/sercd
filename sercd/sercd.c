@@ -153,6 +153,10 @@ Boolean DeviceOpened = False;
 /* Device file descriptor */
 static PORTHANDLE DeviceFd;
 
+/* Network sockets */
+static SERCD_SOCKET InSocketFd = STDIN_FILENO;
+static SERCD_SOCKET OutSocketFd = STDOUT_FILENO;
+
 /* Com Port Control enabled flag */
 Boolean TCPCEnabled = False;
 
@@ -385,8 +389,8 @@ void
 ExitFunction(void)
 {
     /* Closes the sockets */
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
+    close(InSocketFd);
+    close(OutSocketFd);
 
     ClosePort(DeviceFd, LockFileName);
 
@@ -1210,21 +1214,21 @@ main(int argc, char **argv)
      * doesn't check if anything fails because failure doesn't prevent
      * correct functioning but only provides slightly worse behaviour
      */
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+    setsockopt(InSocketFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
 	       sizeof(SockParmEnable));
-    setsockopt(STDIN_FILENO, SOL_SOCKET, SO_OOBINLINE, (char *) &SockParmEnable,
+    setsockopt(InSocketFd, SOL_SOCKET, SO_OOBINLINE, (char *) &SockParmEnable,
 	       sizeof(SockParmEnable));
-    setsockopt(STDOUT_FILENO, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+    setsockopt(OutSocketFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
 	       sizeof(SockParmEnable));
 #ifndef WIN32
     SockParm = IPTOS_LOWDELAY;
-    setsockopt(STDIN_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-    setsockopt(STDOUT_FILENO, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
+    setsockopt(InSocketFd, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
+    setsockopt(OutSocketFd, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
 #endif
 
     /* Make reads/writes unblocking */
-    ioctl(STDOUT_FILENO, FIONBIO, &SockParmEnable);
-    ioctl(STDIN_FILENO, FIONBIO, &SockParmEnable);
+    ioctl(OutSocketFd, FIONBIO, &SockParmEnable);
+    ioctl(InSocketFd, FIONBIO, &SockParmEnable);
     ioctl(DeviceFd, FIONBIO, &SockParmEnable);
 
     /* Send initial Telnet negotiations to the client */
@@ -1246,10 +1250,10 @@ main(int argc, char **argv)
     /* Initially we have to read from all, but we only have data to send
      * to the network */
     FD_ZERO(&InFdSet);
-    FD_SET(STDIN_FILENO, &InFdSet);
+    FD_SET(InSocketFd, &InFdSet);
     FD_SET(DeviceFd, &InFdSet);
     FD_ZERO(&OutFdSet);
-    FD_SET(STDOUT_FILENO, &OutFdSet);
+    FD_SET(OutSocketFd, &OutFdSet);
 
     /* Set up timeout for modem status polling */
     if (ETimeout != NULL)
@@ -1282,12 +1286,12 @@ main(int argc, char **argv)
 		}
 	    }
 
-	    if (FD_ISSET(STDOUT_FILENO, &OutFdSet)) {
+	    if (FD_ISSET(OutSocketFd, &OutFdSet)) {
 		/* Write to network */
 		while (!IsBufferEmpty(&ToNetBuf)) {
 		    int x;
 		    C = GetFromBuffer(&ToNetBuf);
-		    x = write(STDOUT_FILENO, &C, 1);
+		    x = write(OutSocketFd, &C, 1);
 		    if (x < 0 && errno == EWOULDBLOCK) {
 			PushToBuffer(&ToNetBuf, C);
 			break;
@@ -1314,11 +1318,11 @@ main(int argc, char **argv)
 		}
 	    }
 
-	    if (FD_ISSET(STDIN_FILENO, &InFdSet)) {
+	    if (FD_ISSET(InSocketFd, &InFdSet)) {
 		/* Read from network */
 		while (!IsBufferFull(&ToDevBuf)) {
 		    int x;
-		    x = read(STDIN_FILENO, &C, 1);
+		    x = read(InSocketFd, &C, 1);
 		    if (x < 0 && errno == EWOULDBLOCK) {
 			break;
 		    }
@@ -1369,7 +1373,7 @@ main(int argc, char **argv)
 
 	/* Check if the buffer is not full */
 	if (IsBufferFull(&ToDevBuf) == False) {
-	    FD_SET(STDIN_FILENO, &InFdSet);
+	    FD_SET(InSocketFd, &InFdSet);
 	}
 	else if (RemoteFlowOff == False) {
 	    /* Send a flow control suspend command */
@@ -1387,7 +1391,7 @@ main(int argc, char **argv)
 	if (!IsBufferEmpty(&ToDevBuf))
 	    FD_SET(DeviceFd, &OutFdSet);
 	if (!IsBufferEmpty(&ToNetBuf))
-	    FD_SET(STDOUT_FILENO, &OutFdSet);
+	    FD_SET(OutSocketFd, &OutFdSet);
 
 	/* Set up timeout for modem status polling */
 	if (ETimeout != NULL)
