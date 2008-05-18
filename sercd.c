@@ -329,6 +329,24 @@ InitTelnetStateMachine(void)
     }
 }
 
+/* Send initial Telnet negotiations to the client */
+void
+SendTelnetInitialOptions(BufferType * B)
+{
+    SendTelnetOption(B, TNWILL, TN_TRANSMIT_BINARY);
+    tnstate[TN_TRANSMIT_BINARY].sent_will = 1;
+    SendTelnetOption(B, TNDO, TN_TRANSMIT_BINARY);
+    tnstate[TN_TRANSMIT_BINARY].sent_do = 1;
+    SendTelnetOption(B, TNWILL, TN_ECHO);
+    tnstate[TN_ECHO].sent_will = 1;
+    SendTelnetOption(B, TNWILL, TN_SUPPRESS_GO_AHEAD);
+    tnstate[TN_SUPPRESS_GO_AHEAD].sent_will = 1;
+    SendTelnetOption(B, TNDO, TN_SUPPRESS_GO_AHEAD);
+    tnstate[TN_SUPPRESS_GO_AHEAD].sent_do = 1;
+    SendTelnetOption(B, TNDO, TNCOM_PORT_OPTION);
+    tnstate[TNCOM_PORT_OPTION].sent_do = 1;
+}
+
 /* Initialize a buffer for operation */
 void
 InitBuffer(BufferType * B)
@@ -1231,20 +1249,8 @@ main(int argc, char **argv)
     ioctl(InSocketFd, FIONBIO, &SockParmEnable);
     ioctl(DeviceFd, FIONBIO, &SockParmEnable);
 
-    /* Send initial Telnet negotiations to the client */
     InitTelnetStateMachine();
-    SendTelnetOption(&ToNetBuf, TNWILL, TN_TRANSMIT_BINARY);
-    tnstate[TN_TRANSMIT_BINARY].sent_will = 1;
-    SendTelnetOption(&ToNetBuf, TNDO, TN_TRANSMIT_BINARY);
-    tnstate[TN_TRANSMIT_BINARY].sent_do = 1;
-    SendTelnetOption(&ToNetBuf, TNWILL, TN_ECHO);
-    tnstate[TN_ECHO].sent_will = 1;
-    SendTelnetOption(&ToNetBuf, TNWILL, TN_SUPPRESS_GO_AHEAD);
-    tnstate[TN_SUPPRESS_GO_AHEAD].sent_will = 1;
-    SendTelnetOption(&ToNetBuf, TNDO, TN_SUPPRESS_GO_AHEAD);
-    tnstate[TN_SUPPRESS_GO_AHEAD].sent_do = 1;
-    SendTelnetOption(&ToNetBuf, TNDO, TNCOM_PORT_OPTION);
-    tnstate[TNCOM_PORT_OPTION].sent_do = 1;
+    SendTelnetInitialOptions(&ToNetBuf);
 
     /* Set up fd sets */
     /* Initially we have to read from all, but we only have data to send
