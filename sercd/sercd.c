@@ -54,6 +54,8 @@
 #include <fcntl.h>		/* open */
 #include <netinet/in.h>		/* htonl */
 #include <netinet/ip.h>		/* IPTOS_LOWDELAY */
+#include <arpa/inet.h>		/* inet_addr */
+#include <sys/socket.h>		/* setsockopt */
 #include "sercd.h"
 #include "unix.h"
 #include "win.h"
@@ -1143,11 +1145,14 @@ Usage(void)
     /* Write little usage information */
     fprintf(stderr,
 	    "sercd %s: RFC 2217 compliant serial port redirector\n"
-	    "This program should be run only by the inetd superserver\n"
+	    "This program can be run by the inetd superserver or standalone\n"
 	    "\n"
-	    "Usage: sercd [-ie] <loglevel> <device> <lockfile> [pollingterval]\n"
-	    "-i indicates Cisco IOS Bug compatibility\n"
-	    "-e send output to standard error instead of syslog\n"
+	    "Usage:\n"
+	    "sercd [-ie] [-p port] [-l addr] <loglevel> <device> <lockfile> [pollingterval]\n"
+	    "-i       indicates Cisco IOS Bug compatibility\n"
+	    "-e       send output to standard error instead of syslog\n"
+	    "-p port  listen on specified port, instead of port 7000\n"
+	    "-l addr  standalone mode, bind to specified adress, empty string for all\n"
 	    "Poll interval is in milliseconds, default is 100, \n"
 	    "0 means no polling\n", SercdVersionId);
 }
@@ -1190,7 +1195,10 @@ main(int argc, char **argv)
     int SockParmEnable = 1;
 
     int opt = 0;
-    char *optstring = "ie";
+    char *optstring = "iep:l:";
+    unsigned int opt_port = 7000;
+    Boolean inetd_mode = True;
+    struct in_addr opt_bind_addr;
 
     while (opt != -1) {
 	opt = getopt(argc, argv, optstring);
@@ -1201,6 +1209,26 @@ main(int argc, char **argv)
 	    break;
 	case 'e':
 	    StdErrLogging = True;
+	    break;
+	case 'p':
+	    opt_port = strtol(optarg, NULL, 10);
+	    if (opt_port == 0) {
+		fprintf(stderr, "Invalid port\n");
+		exit(1);
+	    }
+	    break;
+	case 'l':
+	    if (*optarg) {
+		opt_bind_addr.s_addr = inet_addr(optarg);
+		if (opt_bind_addr.s_addr == (unsigned) -1) {
+		    fprintf(stderr, "Invalid bind address\n");
+		    exit(1);
+		}
+	    }
+	    else {
+		opt_bind_addr.s_addr = INADDR_ANY;
+	    }
+	    inetd_mode = False;
 	    break;
 	}
     }
@@ -1247,6 +1275,12 @@ main(int argc, char **argv)
 	     (unsigned int) (BTimeout.tv_usec / 1000));
     LogStr[sizeof(LogStr) - 1] = '\0';
     LogMsg(LOG_INFO, LogStr);
+
+    /* FIXME: implement standalone mode */
+    if (!inetd_mode) {
+	fprintf(stderr, "Standalone mode not yet implemented\n");
+	exit(1);
+    }
 
     if (OpenPort(DeviceName, LockFileName, &DeviceFd) == Error)
 	return Error;
