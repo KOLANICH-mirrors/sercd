@@ -347,6 +347,36 @@ SendTelnetInitialOptions(BufferType * B)
     tnstate[TNCOM_PORT_OPTION].sent_do = 1;
 }
 
+/* Setup sockets for low latency and automatic keepalive; doesn't
+ * check if anything fails because failure doesn't prevent correct
+ * functioning but only provides slightly worse behaviour
+ */
+void
+SetSocketOptions(SERCD_SOCKET insocket, SERCD_SOCKET outsocket)
+{
+    /* Generic socket parameter */
+    int SockParm;
+
+    /* Socket setup flag */
+    int SockParmEnable = 1;
+
+    setsockopt(insocket, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+    setsockopt(insocket, SOL_SOCKET, SO_OOBINLINE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+    setsockopt(outsocket, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
+	       sizeof(SockParmEnable));
+#ifndef WIN32
+    SockParm = IPTOS_LOWDELAY;
+    setsockopt(insocket, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
+    setsockopt(outsocket, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
+#endif
+
+    /* Make reads/writes unblocking */
+    ioctl(outsocket, FIONBIO, &SockParmEnable);
+    ioctl(insocket, FIONBIO, &SockParmEnable);
+}
+
 /* Initialize a buffer for operation */
 void
 InitBuffer(BufferType * B)
@@ -1159,9 +1189,6 @@ main(int argc, char **argv)
     /* Socket setup flag */
     int SockParmEnable = 1;
 
-    /* Generic socket parameter */
-    int SockParm;
-
     int opt = 0;
     char *optstring = "ie";
 
@@ -1228,25 +1255,7 @@ main(int argc, char **argv)
     InitBuffer(&ToDevBuf);
     InitBuffer(&ToNetBuf);
 
-    /* Setup sockets for low latency and automatic keepalive;
-     * doesn't check if anything fails because failure doesn't prevent
-     * correct functioning but only provides slightly worse behaviour
-     */
-    setsockopt(InSocketFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
-	       sizeof(SockParmEnable));
-    setsockopt(InSocketFd, SOL_SOCKET, SO_OOBINLINE, (char *) &SockParmEnable,
-	       sizeof(SockParmEnable));
-    setsockopt(OutSocketFd, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
-	       sizeof(SockParmEnable));
-#ifndef WIN32
-    SockParm = IPTOS_LOWDELAY;
-    setsockopt(InSocketFd, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-    setsockopt(OutSocketFd, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-#endif
-
-    /* Make reads/writes unblocking */
-    ioctl(OutSocketFd, FIONBIO, &SockParmEnable);
-    ioctl(InSocketFd, FIONBIO, &SockParmEnable);
+    SetSocketOptions(InSocketFd, OutSocketFd);
     ioctl(DeviceFd, FIONBIO, &SockParmEnable);
 
     InitTelnetStateMachine();
