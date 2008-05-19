@@ -1295,21 +1295,25 @@ main(int argc, char **argv)
     InitTelnetStateMachine();
     SendTelnetInitialOptions(&ToNetBuf);
 
-    /* Set up fd sets */
-    /* Initially we have to read from all, but we only have data to send
-     * to the network */
-    FD_ZERO(&InFdSet);
-    FD_SET(InSocketFd, &InFdSet);
-    FD_SET(DeviceFd, &InFdSet);
-    FD_ZERO(&OutFdSet);
-    FD_SET(OutSocketFd, &OutFdSet);
-
-    /* Set up timeout for modem status polling */
-    if (ETimeout != NULL)
-	*ETimeout = BTimeout;
-
     /* Main loop with fd's control */
     while (True) {
+	/* Set up fd sets */
+	FD_ZERO(&InFdSet);
+	if (!IsBufferFull(&ToDevBuf))
+	    FD_SET(InSocketFd, &InFdSet);
+	if (!IsBufferFull(&ToNetBuf) && InputFlow)
+	    FD_SET(DeviceFd, &InFdSet);
+
+	FD_ZERO(&OutFdSet);
+	if (!IsBufferEmpty(&ToDevBuf))
+	    FD_SET(DeviceFd, &OutFdSet);
+	if (!IsBufferEmpty(&ToNetBuf))
+	    FD_SET(OutSocketFd, &OutFdSet);
+
+	/* Set up timeout for modem status polling */
+	if (ETimeout != NULL)
+	    *ETimeout = BTimeout;
+
 	if (select(DeviceFd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
 	    /* Handle buffers in the following order
 	     *   Error
@@ -1417,33 +1421,12 @@ main(int argc, char **argv)
 #endif /* COMMENT */
 	}
 
-	/* Resets the fd sets */
-	FD_ZERO(&InFdSet);
-
-	/* Check if the buffer is not full */
-	if (IsBufferFull(&ToDevBuf) == False) {
-	    FD_SET(InSocketFd, &InFdSet);
-	}
-	else if (RemoteFlowOff == False) {
+	/* Check if the buffer is full */
+	if (IsBufferFull(&ToDevBuf) && !RemoteFlowOff) {
 	    /* Send a flow control suspend command */
 	    SendCPCFlowCommand(&ToNetBuf, TNASC_FLOWCONTROL_SUSPEND);
 	    RemoteFlowOff = True;
 	}
 
-	/* If input flow has been disabled from the remote client
-	   don't read from the device */
-	if (!IsBufferFull(&ToNetBuf) && InputFlow == True)
-	    FD_SET(DeviceFd, &InFdSet);
-
-	FD_ZERO(&OutFdSet);
-	/* Check if there are characters available to write */
-	if (!IsBufferEmpty(&ToDevBuf))
-	    FD_SET(DeviceFd, &OutFdSet);
-	if (!IsBufferEmpty(&ToNetBuf))
-	    FD_SET(OutSocketFd, &OutFdSet);
-
-	/* Set up timeout for modem status polling */
-	if (ETimeout != NULL)
-	    *ETimeout = BTimeout;
     }
 }
