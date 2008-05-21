@@ -128,6 +128,9 @@
 #ifndef MAX
 #define MAX(x,y)                (((x) > (y)) ? (x) : (y))
 #endif
+#ifndef MIN
+#define MIN(x,y)                (((x) > (y)) ? (y) : (x))
+#endif
 
 /* Cisco IOS bug compatibility */
 Boolean CiscoIOSCompatible = False;
@@ -373,12 +376,19 @@ BufferLength(BufferType * B)
     return (B->WrPos - B->RdPos + BufferSize) % BufferSize;
 }
 
+/* Return how much room is left */
+unsigned int
+BufferRoomLeft(BufferType * B)
+{
+    /* -1 is for full/empty distinction */
+    return BufferSize - 1 - BufferLength(B);
+}
+
 /* Check if there's room for a number of additional bytes */
 Boolean
 BufferHasRoomFor(BufferType * B, unsigned int x)
 {
-    /* -1 is for full/empty distinction */
-    return (BufferLength(B) + x) < (BufferSize - 1);
+    return BufferRoomLeft(B) >= x;
 }
 
 /* Check if the buffer is empty */
@@ -398,17 +408,6 @@ AddToBuffer(BufferType * B, unsigned char C)
     B->WrPos = (B->WrPos + 1) % BufferSize;
 }
 
-void
-PushToBuffer(BufferType * B, unsigned char C)
-{
-    if (B->RdPos == 0)
-	B->RdPos = BufferSize - 1;
-    else
-	B->RdPos--;
-
-    B->Buffer[B->RdPos] = C;
-}
-
 /* Get a byte from a buffer */
 unsigned char
 GetFromBuffer(BufferType * B)
@@ -416,6 +415,27 @@ GetFromBuffer(BufferType * B)
     unsigned char C = B->Buffer[B->RdPos];
     B->RdPos = (B->RdPos + 1) % BufferSize;
     return (C);
+}
+
+/* Get string from buffer, without removing it. Returns the length of
+   the string. */
+unsigned char *
+GetBufferString(BufferType * B, unsigned int *len)
+{
+    if (B->RdPos <= B->WrPos)
+	*len = B->WrPos - B->RdPos;
+    else
+	*len = BufferSize - B->RdPos;
+
+    return &(B->Buffer[B->RdPos]);
+}
+
+/* Remove the number of read bytes specified */
+void
+BufferPopBytes(BufferType * B, unsigned int len)
+{
+    B->RdPos += len;
+    B->RdPos %= BufferSize;
 }
 
 /* Function executed when the program exits */
@@ -1123,6 +1143,25 @@ HandleIACCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
     }
 }
 
+/* Check and act upon read/write result. Uses errno. Returns true on error. */
+Boolean
+IOResultError(int iobytes, const char *err, const char *eof_err)
+{
+    switch (iobytes) {
+    case -1:
+	if (errno != EWOULDBLOCK) {
+	    LogMsg(LOG_NOTICE, err);
+	    exit(NoError);
+	}
+	break;
+    case 0:
+	LogMsg(LOG_NOTICE, eof_err);
+	exit(NoError);
+	break;
+    }
+    return False;
+}
+
 void
 Usage(void)
 {
@@ -1151,8 +1190,8 @@ main(int argc, char **argv)
     /* Output fd set */
     fd_set OutFdSet;
 
-    /* Char read */
-    unsigned char C;
+    /* Chars read */
+    char readbuf[512];
 
     /* Temporary string for logging */
     char LogStr[TmpStrLen];
@@ -1297,76 +1336,61 @@ main(int argc, char **argv)
 	    *ETimeout = BTimeout;
 
 	if (select(DeviceFd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
-	    /* Handle buffers in the following order
-	     *   Error
-	     *   Output
-	     *   Input
-	     * In other words, ensure we can write, make room, read more data
-	     */
+	    /* Handle buffers in the following order:
+	       Serial input
+	       Serial output
+	       Network output
+	       Network input
+
+	       Motivation: Needs to read away data from the serial port
+	       to prevent buffer overruns. Needs to drain our buffers as
+	       fast as possible, to reduce latency and make room for more. */
+	    int iobytes;
+	    unsigned int i, trybytes;
+	    unsigned char *p;
+
+	    if (FD_ISSET(DeviceFd, &InFdSet)) {
+		/* Read from serial port. Each serial port byte might
+		   produce EscWriteChar_bytes of network data. */
+		trybytes = MIN(sizeof(readbuf), BufferRoomLeft(&ToNetBuf) / EscWriteChar_bytes);
+		iobytes = read(DeviceFd, &readbuf, trybytes);
+		if (!IOResultError(iobytes, "Error reading from device", "EOF from device")) {
+		    for (i = 0; i < iobytes; i++) {
+			EscWriteChar(&ToNetBuf, readbuf[i]);
+		    }
+		}
+	    }
 
 	    if (FD_ISSET(DeviceFd, &OutFdSet)) {
 		/* Write to serial port */
-		while (!IsBufferEmpty(&ToDevBuf)) {
-		    int x;
-		    C = GetFromBuffer(&ToDevBuf);
-		    x = write(DeviceFd, &C, 1);
-		    if (x < 0 && errno == EWOULDBLOCK) {
-			PushToBuffer(&ToDevBuf, C);
-			break;
-		    }
-		    else if (x < 1) {
-			LogMsg(LOG_NOTICE, "Error writing to device.");
-			return (NoError);
-		    }
+		p = GetBufferString(&ToDevBuf, &trybytes);
+		iobytes = write(DeviceFd, p, trybytes);
+		if (!IOResultError(iobytes, "Error writing to device.", "EOF from device")) {
+		    BufferPopBytes(&ToDevBuf, iobytes);
 		}
 	    }
 
 	    if (FD_ISSET(OutSocketFd, &OutFdSet)) {
 		/* Write to network */
-		while (!IsBufferEmpty(&ToNetBuf)) {
-		    int x;
-		    C = GetFromBuffer(&ToNetBuf);
-		    x = write(OutSocketFd, &C, 1);
-		    if (x < 0 && errno == EWOULDBLOCK) {
-			PushToBuffer(&ToNetBuf, C);
-			break;
-		    }
-		    else if (x < 1) {
-			LogMsg(LOG_NOTICE, "Error writing to network.");
-			return (NoError);
-		    }
-		}
-	    }
-
-	    if (FD_ISSET(DeviceFd, &InFdSet)) {
-		/* Read from serial port */
-		while (BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes)) {
-		    int x;
-		    x = read(DeviceFd, &C, 1);
-		    if (x < 0 && errno == EWOULDBLOCK)
-			break;
-		    else if (x < 1) {
-			LogMsg(LOG_NOTICE, "Error reading from device.");
-			return (NoError);
-		    }
-		    EscWriteChar(&ToNetBuf, C);
+		p = GetBufferString(&ToNetBuf, &trybytes);
+		iobytes = write(OutSocketFd, p, trybytes);
+		if (!IOResultError(iobytes, "Error writing to network", "EOF from network")) {
+		    BufferPopBytes(&ToNetBuf, iobytes);
 		}
 	    }
 
 	    if (FD_ISSET(InSocketFd, &InFdSet)) {
-		/* Read from network */
-		while (BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
-		       BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB)) {
-		    int x;
-		    x = read(InSocketFd, &C, 1);
-		    if (x < 0 && errno == EWOULDBLOCK) {
-			break;
+		/* Read from network. Each network byte might produce
+		   EscRedirectChar_bytes_DevB or or up to
+		   EscRedirectChar_bytes_SockB network data. */
+		trybytes = sizeof(readbuf);
+		trybytes = MIN(trybytes, BufferRoomLeft(&ToNetBuf) / EscRedirectChar_bytes_SockB);
+		trybytes = MIN(trybytes, BufferRoomLeft(&ToDevBuf) / EscRedirectChar_bytes_DevB);
+		iobytes = read(InSocketFd, &readbuf, trybytes);
+		if (!IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
+		    for (i = 0; i < iobytes; i++) {
+			EscRedirectChar(&ToNetBuf, &ToDevBuf, DeviceFd, readbuf[i]);
 		    }
-		    else if (x < 1) {
-			LogMsg(LOG_NOTICE, "Error reading from network.");
-			return (NoError);
-		    }
-		    EscRedirectChar(&ToNetBuf, &ToDevBuf, DeviceFd, C);
 		}
 	    }
 	}
