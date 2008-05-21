@@ -25,9 +25,6 @@
         out how to turn a BREAK on and then off based upon receipt of
         COM-PORT Subnegotiations
 
-      . does not properly use select to handle input, output and
-        errors on all devices.
-
       . Lack of login processing
 
       . Lack of Telnet START_TLS to protect the data stream
