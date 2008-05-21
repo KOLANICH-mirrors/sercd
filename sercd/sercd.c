@@ -301,9 +301,6 @@ void SendStr(BufferType * B, char *Str);
 /* Send the baud rate BR to SockFd */
 void SendBaudRate(BufferType * B, unsigned long int BR);
 
-/* Send the flow control command Command */
-void SendCPCFlowCommand(BufferType * B, unsigned char Command);
-
 /* Send the CPC command Command using Parm as parameter */
 void SendCPCByteCommand(BufferType * B, unsigned char Command, unsigned char Parm);
 
@@ -698,23 +695,6 @@ SendBaudRate(BufferType * B, unsigned long int BR)
 	EscWriteChar(B, p[i]);
     AddToBuffer(B, TNIAC);
     AddToBuffer(B, TNSE);
-}
-
-/* Send the flow control command Command */
-void
-SendCPCFlowCommand(BufferType * B, unsigned char Command)
-{
-    AddToBuffer(B, TNIAC);
-    AddToBuffer(B, TNSB);
-    AddToBuffer(B, TNCOM_PORT_OPTION);
-    AddToBuffer(B, Command);
-    AddToBuffer(B, TNIAC);
-    AddToBuffer(B, TNSE);
-
-    if (Command == TNASC_FLOWCONTROL_SUSPEND)
-	LogMsg(LOG_DEBUG, "Sent flow control suspend command.");
-    else
-	LogMsg(LOG_DEBUG, "Sent flow control resume command.");
 }
 
 /* Send the CPC command Command using Parm as parameter */
@@ -1182,9 +1162,6 @@ main(int argc, char **argv)
     /* Pointer to timeout structure to set */
     struct timeval *ETimeout = &RTimeout;
 
-    /* Remote flow control flag */
-    Boolean RemoteFlowOff = False;
-
     /* Buffer to Device from Network */
     BufferType ToDevBuf;
 
@@ -1386,13 +1363,6 @@ main(int argc, char **argv)
 		    EscRedirectChar(&ToNetBuf, &ToDevBuf, DeviceFd, C);
 		}
 	    }
-
-	    /* Check if the buffer is not full and remote flow is off */
-	    if (RemoteFlowOff == True && IsBufferFull(&ToDevBuf) == False) {
-		/* Send a flow control resume command */
-		SendCPCFlowCommand(&ToNetBuf, TNASC_FLOWCONTROL_RESUME);
-		RemoteFlowOff = False;
-	    }
 	}
 
 	/* Check the port state and notify the client if it's changed */
@@ -1420,13 +1390,5 @@ main(int argc, char **argv)
 	    }
 #endif /* COMMENT */
 	}
-
-	/* Check if the buffer is full */
-	if (IsBufferFull(&ToDevBuf) && !RemoteFlowOff) {
-	    /* Send a flow control suspend command */
-	    SendCPCFlowCommand(&ToNetBuf, TNASC_FLOWCONTROL_SUSPEND);
-	    RemoteFlowOff = True;
-	}
-
     }
 }
