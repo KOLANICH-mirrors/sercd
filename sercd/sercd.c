@@ -47,6 +47,7 @@
 #include <unistd.h>		/* close */
 #include <errno.h>		/* errno */
 #include <time.h>		/* CLOCKS_PER_SEC */
+#include <sys/time.h>		/* gettimeofday */
 #include <sys/ioctl.h>		/* ioctl */
 #include <fcntl.h>		/* open */
 #include <netinet/in.h>		/* htonl */
@@ -127,6 +128,22 @@
 #endif
 #ifndef MIN
 #define MIN(x,y)                (((x) > (y)) ? (y) : (x))
+#endif
+
+/* timeval macros */
+#ifndef timerisset
+#define timerisset(tvp)\
+         ((tvp)->tv_sec || (tvp)->tv_usec)
+#endif
+#ifndef timercmp
+#define timercmp(tvp, uvp, cmp)\
+        ((tvp)->tv_sec cmp (uvp)->tv_sec ||\
+        (tvp)->tv_sec == (uvp)->tv_sec &&\
+        (tvp)->tv_usec cmp (uvp)->tv_usec)
+#endif
+#ifndef timerclear
+#define timerclear(tvp)\
+        ((tvp)->tv_sec = (tvp)->tv_usec = 0)
 #endif
 
 /* Cisco IOS bug compatibility */
@@ -1199,8 +1216,9 @@ main(int argc, char **argv)
     /* Base timeout for stream reading */
     struct timeval BTimeout;
 
-    /* Pointer to timeout structure to set */
-    struct timeval *ETimeout = &BTimeout;
+    /* Poll interval and timer */
+    long PollInterval;
+    struct timeval LastPoll = { 0, 0 };
 
     /* Buffer to Device from Network */
     BufferType ToDevBuf;
@@ -1267,23 +1285,18 @@ main(int argc, char **argv)
 
     /* Retrieve the polling interval */
     if (optind < argc) {
-	long msecs;
 	char *endptr;
-	msecs = strtol(argv[optind++], &endptr, 0);
-	if (endptr && !*endptr && msecs >= 0) {
-	    BTimeout.tv_sec = msecs / 1000;
-	    msecs -= BTimeout.tv_sec * 1000;
-	    BTimeout.tv_usec = msecs * 1000;
-	}
-	else {
+	PollInterval = strtol(argv[optind++], &endptr, 0);
+	if (!endptr || *endptr || PollInterval < 0) {
 	    fprintf(stderr, "Invalid polling interval\n");
 	    exit(1);
 	}
     }
     else {
-	BTimeout.tv_sec = 0;
-	BTimeout.tv_usec = DEFAULT_POLL_INTERVAL * 1000;
+	PollInterval = DEFAULT_POLL_INTERVAL;
     }
+    BTimeout.tv_sec = PollInterval / 1000;
+    BTimeout.tv_usec = (PollInterval % 1000) * 1000;
 
     PlatformInit();
 
@@ -1296,8 +1309,7 @@ main(int argc, char **argv)
     LogMsg(LOG_INFO, LogStr);
 
     /* Logs the polling interval */
-    snprintf(LogStr, sizeof(LogStr), "Polling interval (ms): %u",
-	     (unsigned int) (BTimeout.tv_usec / 1000));
+    snprintf(LogStr, sizeof(LogStr), "Polling interval (ms): %ld", PollInterval);
     LogStr[sizeof(LogStr) - 1] = '\0';
     LogMsg(LOG_INFO, LogStr);
 
@@ -1329,6 +1341,8 @@ main(int argc, char **argv)
 
     /* Main loop with fd's control */
     while (True) {
+	struct timeval now;
+	struct timeval newpolltime;
 	int highest_fd = -1;
 
 	/* Set up fd sets */
@@ -1353,7 +1367,7 @@ main(int argc, char **argv)
 	    highest_fd = MAX(highest_fd, *OutSocketFd);
 	}
 
-	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
+	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout) > 0) {
 	    /* Handle buffers in the following order:
 	       Serial input
 	       Serial output
@@ -1414,8 +1428,16 @@ main(int argc, char **argv)
 	}
 
 	/* Check the port state and notify the client if it's changed */
-	if (PortControlEnable && DeviceFd && InputFlow
+	gettimeofday(&now, NULL);
+	if (timercmp(&now, &LastPoll, <)) {
+	    /* Time moved backwards */
+	    timerclear(&LastPoll);
+	}
+	newpolltime.tv_sec = LastPoll.tv_sec + PollInterval / 1000;
+	newpolltime.tv_usec = LastPoll.tv_usec + PollInterval % 1000;
+	if (timercmp(&newpolltime, &now, <) && PortControlEnable && DeviceFd && InputFlow
 	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
+	    LastPoll = now;
 	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
 		!= (ModemState & ModemStateMask & ModemStateECMask)) {
 		ModemState = GetModemState(*DeviceFd, ModemState);
