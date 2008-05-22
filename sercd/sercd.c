@@ -154,11 +154,11 @@ static char *DeviceName;
 Boolean DeviceOpened = False;
 
 /* Device file descriptor */
-static PORTHANDLE DeviceFd;
+static PORTHANDLE *DeviceFd = NULL;
 
 /* Network sockets */
-static SERCD_SOCKET InSocketFd = STDIN_FILENO;
-static SERCD_SOCKET OutSocketFd = STDOUT_FILENO;
+static SERCD_SOCKET *InSocketFd = NULL;
+static SERCD_SOCKET *OutSocketFd = NULL;
 
 /* Com Port Control enabled flag */
 Boolean TCPCEnabled = False;
@@ -440,10 +440,13 @@ void
 ExitFunction(void)
 {
     /* Closes the sockets */
-    close(InSocketFd);
-    close(OutSocketFd);
-
-    ClosePort(DeviceFd, LockFileName);
+    if (InSocketFd)
+	close(*InSocketFd);
+    if (OutSocketFd)
+	close(*OutSocketFd);
+    
+    if (DeviceFd)
+	ClosePort(*DeviceFd, LockFileName);
 
     /* Program termination notification */
     LogMsg(LOG_NOTICE, "sercd stopped.");
@@ -1216,6 +1219,8 @@ main(int argc, char **argv)
     unsigned int opt_port = 7000;
     Boolean inetd_mode = True;
     struct in_addr opt_bind_addr;
+    SERCD_SOCKET insocket, outsocket;
+    PORTHANDLE devicefd;
 
     while (opt != -1) {
 	opt = getopt(argc, argv, optstring);
@@ -1294,45 +1299,62 @@ main(int argc, char **argv)
     LogMsg(LOG_INFO, LogStr);
 
     /* FIXME: implement standalone mode */
-    if (!inetd_mode) {
+    if (inetd_mode) {
+	insocket = STDIN_FILENO;
+	outsocket = STDOUT_FILENO;
+	InSocketFd = &insocket;
+	OutSocketFd = &outsocket;
+	DeviceFd = &devicefd;
+    } else {
 	fprintf(stderr, "Standalone mode not yet implemented\n");
 	exit(1);
     }
 
-    if (OpenPort(DeviceName, LockFileName, &DeviceFd) == Error)
+    if (OpenPort(DeviceName, LockFileName, DeviceFd) == Error)
 	return Error;
 
     /* Initialize the input buffer */
     InitBuffer(&ToDevBuf);
     InitBuffer(&ToNetBuf);
 
-    SetSocketOptions(InSocketFd, OutSocketFd);
-    ioctl(DeviceFd, FIONBIO, &SockParmEnable);
+    SetSocketOptions(*InSocketFd, *OutSocketFd);
+    ioctl(*DeviceFd, FIONBIO, &SockParmEnable);
 
     InitTelnetStateMachine();
     SendTelnetInitialOptions(&ToNetBuf);
 
     /* Main loop with fd's control */
     while (True) {
+	int highest_fd = -1;
+
 	/* Set up fd sets */
 	FD_ZERO(&InFdSet);
 	if (BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
-	    BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB))
-	    FD_SET(InSocketFd, &InFdSet);
-	if (BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes) && InputFlow)
-	    FD_SET(DeviceFd, &InFdSet);
+	    BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB) &&
+	    InSocketFd) {
+	    FD_SET(*InSocketFd, &InFdSet);
+	    highest_fd = MAX(highest_fd, *InSocketFd);
+	}
+	if (BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes) && InputFlow && DeviceFd) {
+	    FD_SET(*DeviceFd, &InFdSet);
+	    highest_fd = MAX(highest_fd, *DeviceFd);
+	}
 
 	FD_ZERO(&OutFdSet);
-	if (!IsBufferEmpty(&ToDevBuf))
-	    FD_SET(DeviceFd, &OutFdSet);
-	if (!IsBufferEmpty(&ToNetBuf))
-	    FD_SET(OutSocketFd, &OutFdSet);
+	if (!IsBufferEmpty(&ToDevBuf) && DeviceFd) {
+	    FD_SET(*DeviceFd, &OutFdSet);
+	    highest_fd = MAX(highest_fd, *DeviceFd);
+	}
+	if (!IsBufferEmpty(&ToNetBuf) && OutSocketFd) {
+	    FD_SET(*OutSocketFd, &OutFdSet);
+	    highest_fd = MAX(highest_fd, *OutSocketFd);
+	}
 
 	/* Set up timeout for modem status polling */
 	if (ETimeout != NULL)
 	    *ETimeout = BTimeout;
 
-	if (select(DeviceFd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
+	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
 	    /* Handle buffers in the following order:
 	       Serial input
 	       Serial output
@@ -1346,11 +1368,11 @@ main(int argc, char **argv)
 	    unsigned int i, trybytes;
 	    unsigned char *p;
 
-	    if (FD_ISSET(DeviceFd, &InFdSet)) {
+	    if (DeviceFd && FD_ISSET(*DeviceFd, &InFdSet)) {
 		/* Read from serial port. Each serial port byte might
 		   produce EscWriteChar_bytes of network data. */
 		trybytes = MIN(sizeof(readbuf), BufferRoomLeft(&ToNetBuf) / EscWriteChar_bytes);
-		iobytes = read(DeviceFd, &readbuf, trybytes);
+		iobytes = read(*DeviceFd, &readbuf, trybytes);
 		if (!IOResultError(iobytes, "Error reading from device", "EOF from device")) {
 		    for (i = 0; i < iobytes; i++) {
 			EscWriteChar(&ToNetBuf, readbuf[i]);
@@ -1358,45 +1380,45 @@ main(int argc, char **argv)
 		}
 	    }
 
-	    if (FD_ISSET(DeviceFd, &OutFdSet)) {
+	    if (DeviceFd && FD_ISSET(*DeviceFd, &OutFdSet)) {
 		/* Write to serial port */
 		p = GetBufferString(&ToDevBuf, &trybytes);
-		iobytes = write(DeviceFd, p, trybytes);
+		iobytes = write(*DeviceFd, p, trybytes);
 		if (!IOResultError(iobytes, "Error writing to device.", "EOF from device")) {
 		    BufferPopBytes(&ToDevBuf, iobytes);
 		}
 	    }
 
-	    if (FD_ISSET(OutSocketFd, &OutFdSet)) {
+	    if (OutSocketFd && FD_ISSET(*OutSocketFd, &OutFdSet)) {
 		/* Write to network */
 		p = GetBufferString(&ToNetBuf, &trybytes);
-		iobytes = write(OutSocketFd, p, trybytes);
+		iobytes = write(*OutSocketFd, p, trybytes);
 		if (!IOResultError(iobytes, "Error writing to network", "EOF from network")) {
 		    BufferPopBytes(&ToNetBuf, iobytes);
 		}
 	    }
 
-	    if (FD_ISSET(InSocketFd, &InFdSet)) {
+	    if (InSocketFd && DeviceFd && FD_ISSET(*InSocketFd, &InFdSet)) {
 		/* Read from network. Each network byte might produce
 		   EscRedirectChar_bytes_DevB or or up to
 		   EscRedirectChar_bytes_SockB network data. */
 		trybytes = sizeof(readbuf);
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToNetBuf) / EscRedirectChar_bytes_SockB);
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToDevBuf) / EscRedirectChar_bytes_DevB);
-		iobytes = read(InSocketFd, &readbuf, trybytes);
+		iobytes = read(*InSocketFd, &readbuf, trybytes);
 		if (!IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
 		    for (i = 0; i < iobytes; i++) {
-			EscRedirectChar(&ToNetBuf, &ToDevBuf, DeviceFd, readbuf[i]);
+			EscRedirectChar(&ToNetBuf, &ToDevBuf, *DeviceFd, readbuf[i]);
 		    }
 		}
 	    }
 	}
 
 	/* Check the port state and notify the client if it's changed */
-	if (TCPCEnabled && InputFlow && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
-	    if ((GetModemState(DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
+	if (TCPCEnabled && DeviceFd && InputFlow && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
+	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
 		!= (ModemState & ModemStateMask & ModemStateECMask)) {
-		ModemState = GetModemState(DeviceFd, ModemState);
+		ModemState = GetModemState(*DeviceFd, ModemState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
 				   (ModemState & ModemStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent modem state: %u",
@@ -1406,9 +1428,9 @@ main(int argc, char **argv)
 	    }
 #ifdef COMMENT
 	    /* GetLineState() not yet implemented */
-	    if ((GetLineState(DeviceFd, LineState) & LineStateMask &
+	    if (DeviceFd && (GetLineState(*DeviceFd, LineState) & LineStateMask &
 		 LineStateECMask) != (LineState & LineStateMask & LineStateECMask)) {
-		LineState = GetLineState(DeviceFd, LineState);
+		LineState = GetLineState(*DeviceFd, LineState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE, (LineState & LineStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent line state: %u",
 			 (unsigned int) (LineState & LineStateMask));
