@@ -119,7 +119,7 @@
 #define LineStateECMask ((unsigned char) 255)
 
 /* Default modem state polling in milliseconds (100 msec should be enough) */
-#define ModemStatePolling 100
+#define DEFAULT_POLL_INTERVAL 100
 
 /* macros */
 #ifndef MAX
@@ -161,7 +161,7 @@ static SERCD_SOCKET *InSocketFd = NULL;
 static SERCD_SOCKET *OutSocketFd = NULL;
 
 /* Com Port Control enabled flag */
-Boolean PortControlEnable = False;
+Boolean PortControlEnable = True;
 
 /* Maximum log level to log in the system log */
 int MaxLogLevel = LOG_DEBUG + 1;
@@ -1176,8 +1176,8 @@ Usage(void)
 	    "-e       send output to standard error instead of syslog\n"
 	    "-p port  listen on specified port, instead of port 7000\n"
 	    "-l addr  standalone mode, bind to specified adress, empty string for all\n"
-	    "Poll interval is in milliseconds, default is 100, \n"
-	    "0 means no polling\n", SercdVersionId);
+	    "Poll interval is in milliseconds, default is %d,\n"
+	    "0 means no polling\n", SercdVersionId, DEFAULT_POLL_INTERVAL);
 }
 
 /* Main function */
@@ -1199,11 +1199,8 @@ main(int argc, char **argv)
     /* Base timeout for stream reading */
     struct timeval BTimeout;
 
-    /* Timeout for stream reading */
-    struct timeval RTimeout;
-
     /* Pointer to timeout structure to set */
-    struct timeval *ETimeout = &RTimeout;
+    struct timeval *ETimeout = &BTimeout;
 
     /* Buffer to Device from Network */
     BufferType ToDevBuf;
@@ -1270,16 +1267,22 @@ main(int argc, char **argv)
 
     /* Retrieve the polling interval */
     if (optind < argc) {
-	BTimeout.tv_sec = 0;
-	BTimeout.tv_usec = atol(argv[optind++]) * 1000;
-
-	if (BTimeout.tv_usec <= 0) {
-	    ETimeout = NULL;
+	long msecs;
+	char *endptr;
+	msecs = strtol(argv[optind++], &endptr, 0);
+	if (endptr && !*endptr && msecs >= 0) {
+	    BTimeout.tv_sec = msecs / 1000;
+	    msecs -= BTimeout.tv_sec * 1000;
+	    BTimeout.tv_usec = msecs * 1000;
+	}
+	else {
+	    fprintf(stderr, "Invalid polling interval\n");
+	    exit(1);
 	}
     }
     else {
 	BTimeout.tv_sec = 0;
-	BTimeout.tv_usec = ModemStatePolling * 1000;
+	BTimeout.tv_usec = DEFAULT_POLL_INTERVAL * 1000;
     }
 
     PlatformInit();
@@ -1349,10 +1352,6 @@ main(int argc, char **argv)
 	    FD_SET(*OutSocketFd, &OutFdSet);
 	    highest_fd = MAX(highest_fd, *OutSocketFd);
 	}
-
-	/* Set up timeout for modem status polling */
-	if (ETimeout != NULL)
-	    *ETimeout = BTimeout;
 
 	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, ETimeout) > 0) {
 	    /* Handle buffers in the following order:
