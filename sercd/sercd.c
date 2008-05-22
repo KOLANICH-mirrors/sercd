@@ -114,11 +114,6 @@
 #define TNASC_SET_MODEMSTATE_MASK ((unsigned char) 111)
 #define TNASC_PURGE_DATA ((unsigned char) 112)
 
-/* Modem state effective change mask */
-#define ModemStateECMask ((unsigned char) 255)
-
-#define LineStateECMask ((unsigned char) 255)
-
 /* Default modem state polling in milliseconds (100 msec should be enough) */
 #define DEFAULT_POLL_INTERVAL 100
 
@@ -1438,8 +1433,8 @@ main(int argc, char **argv)
 	if (timercmp(&newpolltime, &now, <) && PortControlEnable && DeviceFd && InputFlow
 	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
 	    LastPoll = now;
-	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
-		!= (ModemState & ModemStateMask & ModemStateECMask)) {
+	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask)
+		!= (ModemState & ModemStateMask)) {
 		ModemState = GetModemState(*DeviceFd, ModemState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
 				   (ModemState & ModemStateMask));
@@ -1450,8 +1445,9 @@ main(int argc, char **argv)
 	    }
 #ifdef COMMENT
 	    /* GetLineState() not yet implemented */
-	    if (DeviceFd && (GetLineState(*DeviceFd, LineState) & LineStateMask &
-			     LineStateECMask) != (LineState & LineStateMask & LineStateECMask)) {
+	    if (DeviceFd
+		&& (GetLineState(*DeviceFd, LineState) & LineStateMask) !=
+		(LineState & LineStateMask)) {
 		LineState = GetLineState(*DeviceFd, LineState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE, (LineState & LineStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent line state: %u",
