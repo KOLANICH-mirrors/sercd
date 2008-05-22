@@ -444,7 +444,7 @@ ExitFunction(void)
 	close(*InSocketFd);
     if (OutSocketFd)
 	close(*OutSocketFd);
-    
+
     if (DeviceFd)
 	ClosePort(*DeviceFd, LockFileName);
 
@@ -1305,7 +1305,8 @@ main(int argc, char **argv)
 	InSocketFd = &insocket;
 	OutSocketFd = &outsocket;
 	DeviceFd = &devicefd;
-    } else {
+    }
+    else {
 	fprintf(stderr, "Standalone mode not yet implemented\n");
 	exit(1);
     }
@@ -1330,8 +1331,7 @@ main(int argc, char **argv)
 	/* Set up fd sets */
 	FD_ZERO(&InFdSet);
 	if (BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
-	    BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB) &&
-	    InSocketFd) {
+	    BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB) && InSocketFd) {
 	    FD_SET(*InSocketFd, &InFdSet);
 	    highest_fd = MAX(highest_fd, *InSocketFd);
 	}
@@ -1415,7 +1415,8 @@ main(int argc, char **argv)
 	}
 
 	/* Check the port state and notify the client if it's changed */
-	if (TCPCEnabled && DeviceFd && InputFlow && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
+	if (TCPCEnabled && DeviceFd && InputFlow
+	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
 	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
 		!= (ModemState & ModemStateMask & ModemStateECMask)) {
 		ModemState = GetModemState(*DeviceFd, ModemState);
@@ -1429,7 +1430,7 @@ main(int argc, char **argv)
 #ifdef COMMENT
 	    /* GetLineState() not yet implemented */
 	    if (DeviceFd && (GetLineState(*DeviceFd, LineState) & LineStateMask &
-		 LineStateECMask) != (LineState & LineStateMask & LineStateECMask)) {
+			     LineStateECMask) != (LineState & LineStateMask & LineStateECMask)) {
 		LineState = GetLineState(*DeviceFd, LineState);
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE, (LineState & LineStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent line state: %u",
