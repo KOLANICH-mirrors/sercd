@@ -1208,9 +1208,6 @@ main(int argc, char **argv)
     /* Temporary string for logging */
     char LogStr[TmpStrLen];
 
-    /* Base timeout for stream reading */
-    struct timeval BTimeout;
-
     /* Poll interval and timer */
     long PollInterval;
     struct timeval LastPoll = { 0, 0 };
@@ -1290,8 +1287,6 @@ main(int argc, char **argv)
     else {
 	PollInterval = DEFAULT_POLL_INTERVAL;
     }
-    BTimeout.tv_sec = PollInterval / 1000;
-    BTimeout.tv_usec = (PollInterval % 1000) * 1000;
 
     PlatformInit();
 
@@ -1338,6 +1333,7 @@ main(int argc, char **argv)
     while (True) {
 	struct timeval now;
 	struct timeval newpolltime;
+	struct timeval BTimeout;
 	int highest_fd = -1;
 
 	/* Set up fd sets */
@@ -1361,6 +1357,9 @@ main(int argc, char **argv)
 	    FD_SET(*OutSocketFd, &OutFdSet);
 	    highest_fd = MAX(highest_fd, *OutSocketFd);
 	}
+
+	BTimeout.tv_sec = PollInterval / 1000;
+	BTimeout.tv_usec = (PollInterval % 1000) * 1000;
 
 	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout) > 0) {
 	    /* Handle buffers in the following order:
