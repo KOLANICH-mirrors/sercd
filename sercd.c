@@ -161,7 +161,7 @@ static SERCD_SOCKET *InSocketFd = NULL;
 static SERCD_SOCKET *OutSocketFd = NULL;
 
 /* Com Port Control enabled flag */
-Boolean TCPCEnabled = False;
+Boolean PortControlEnable = False;
 
 /* Maximum log level to log in the system log */
 int MaxLogLevel = LOG_DEBUG + 1;
@@ -1014,7 +1014,7 @@ HandleIACCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    /* COM Port Control Option */
 	case TNCOM_PORT_OPTION:
 	    LogMsg(LOG_INFO, "Telnet COM Port Control Enabled (WILL).");
-	    TCPCEnabled = True;
+	    PortControlEnable = True;
 	    if (!tnstate[Command[2]].sent_do) {
 		SendTelnetOption(SockB, TNDO, Command[2]);
 	    }
@@ -1065,7 +1065,7 @@ HandleIACCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    /* COM Port Control Option */
 	case TNCOM_PORT_OPTION:
 	    LogMsg(LOG_INFO, "Telnet COM Port Control Enabled (DO).");
-	    TCPCEnabled = True;
+	    PortControlEnable = True;
 	    if (!tnstate[Command[2]].sent_will)
 		SendTelnetOption(SockB, TNWILL, Command[2]);
 	    tnstate[Command[2]].is_will = 1;
@@ -1415,7 +1415,7 @@ main(int argc, char **argv)
 	}
 
 	/* Check the port state and notify the client if it's changed */
-	if (TCPCEnabled && DeviceFd && InputFlow
+	if (PortControlEnable && DeviceFd && InputFlow
 	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
 	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask & ModemStateECMask)
 		!= (ModemState & ModemStateMask & ModemStateECMask)) {
