@@ -745,7 +745,6 @@ PlatformInit()
     signal(SIGHUP, SignalFunction);
     signal(SIGQUIT, SignalFunction);
     signal(SIGABRT, SignalFunction);
-    signal(SIGPIPE, SignalFunction);
     signal(SIGTERM, SignalFunction);
 
     /* Register the function to be called on break condition */
