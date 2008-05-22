@@ -1432,10 +1432,11 @@ main(int argc, char **argv)
 	newpolltime.tv_usec = LastPoll.tv_usec + PollInterval % 1000;
 	if (timercmp(&newpolltime, &now, <) && PortControlEnable && DeviceFd && InputFlow
 	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
+	    unsigned char newstate;
 	    LastPoll = now;
-	    if ((GetModemState(*DeviceFd, ModemState) & ModemStateMask)
-		!= (ModemState & ModemStateMask)) {
-		ModemState = GetModemState(*DeviceFd, ModemState);
+	    newstate = GetModemState(*DeviceFd, ModemState);
+	    if ((newstate & ModemStateMask) != (ModemState & ModemStateMask)) {
+		ModemState = newstate;
 		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
 				   (ModemState & ModemStateMask));
 		snprintf(LogStr, sizeof(LogStr), "Sent modem state: %u",
