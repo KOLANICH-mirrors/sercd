@@ -5,7 +5,7 @@
  */
 
 #ifdef WIN32
-#include "winsupport.h"
+#include "win.h"
 
 
 #endif /* WIN32 */
