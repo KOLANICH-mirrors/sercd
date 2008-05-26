@@ -27,11 +27,9 @@ extern Boolean StdErrLogging;
 
 extern int MaxLogLevel;
 
-/* True after retrieving the initial settings from the serial port */
-static Boolean InitPortRetrieved = False;
-
 /* Initial serial port settings */
-static struct termios InitialPortSettings;
+static struct termios *InitialPortSettings;
+static struct termios initialportsettings;
 
 /* Locking constants */
 #define LockOk 0
@@ -668,8 +666,8 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
     }
 
     /* Get the actual port settings */
-    tcgetattr(*PortFd, &InitialPortSettings);
-    InitPortRetrieved = True;
+    InitialPortSettings = &initialportsettings;
+    tcgetattr(*PortFd, InitialPortSettings);
     tcgetattr(*PortFd, &PortSettings);
 
     /* Set the serial port to raw mode */
@@ -691,8 +689,8 @@ void
 ClosePort(PORTHANDLE PortFd, const char *LockFileName)
 {
     /* Restores initial port settings */
-    if (InitPortRetrieved == True)
-	tcsetattr(PortFd, TCSANOW, &InitialPortSettings);
+    if (InitialPortSettings)
+	tcsetattr(PortFd, TCSANOW, InitialPortSettings);
 
     /* Closes the device */
     close(PortFd);
