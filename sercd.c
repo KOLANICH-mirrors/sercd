@@ -157,9 +157,6 @@ static char *LockFileName;
 /* Complete device file pathname */
 static char *DeviceName;
 
-/* True when the device has been opened */
-Boolean DeviceOpened = False;
-
 /* Device file descriptor */
 static PORTHANDLE *DeviceFd = NULL;
 
