@@ -1163,15 +1163,33 @@ IOResultError(int iobytes, const char *err, const char *eof_err)
     case -1:
 	if (errno != EWOULDBLOCK) {
 	    LogMsg(LOG_NOTICE, err);
-	    exit(NoError);
+	    return True;
 	}
 	break;
     case 0:
 	LogMsg(LOG_NOTICE, eof_err);
-	exit(NoError);
+	return True;
 	break;
     }
     return False;
+}
+
+
+/* Drop client connection and close serial port */
+void
+DropConnection(PORTHANDLE * DeviceFd, SERCD_SOCKET * InSocketFd, SERCD_SOCKET * OutSocketFd)
+{
+    if (DeviceFd) {
+	close(*DeviceFd);
+    }
+
+    if (InSocketFd) {
+	close(*InSocketFd);
+    }
+
+    if (OutSocketFd) {
+	close(*OutSocketFd);
+    }
 }
 
 void
@@ -1226,8 +1244,11 @@ main(int argc, char **argv)
     unsigned int opt_port = 7000;
     Boolean inetd_mode = True;
     struct in_addr opt_bind_addr;
-    SERCD_SOCKET insocket, outsocket;
+    SERCD_SOCKET insocket, outsocket, lsocket;
+    SERCD_SOCKET *LSocketFd = NULL;
     PORTHANDLE devicefd;
+
+    opt_bind_addr.s_addr = INADDR_ANY;
 
     while (opt != -1) {
 	opt = getopt(argc, argv, optstring);
@@ -1251,11 +1272,8 @@ main(int argc, char **argv)
 		opt_bind_addr.s_addr = inet_addr(optarg);
 		if (opt_bind_addr.s_addr == (unsigned) -1) {
 		    fprintf(stderr, "Invalid bind address\n");
-		    exit(1);
+		    exit(Error);
 		}
-	    }
-	    else {
-		opt_bind_addr.s_addr = INADDR_ANY;
 	    }
 	    inetd_mode = False;
 	    break;
@@ -1303,38 +1321,56 @@ main(int argc, char **argv)
     LogStr[sizeof(LogStr) - 1] = '\0';
     LogMsg(LOG_INFO, LogStr);
 
-    /* FIXME: implement standalone mode */
     if (inetd_mode) {
+	/* inetd mode */
 	insocket = STDIN_FILENO;
 	outsocket = STDOUT_FILENO;
 	InSocketFd = &insocket;
 	OutSocketFd = &outsocket;
-	DeviceFd = &devicefd;
+	SetSocketOptions(*InSocketFd, *OutSocketFd);
+	InitBuffer(&ToNetBuf);
+	InitTelnetStateMachine();
+	SendTelnetInitialOptions(&ToNetBuf);
     }
     else {
-	fprintf(stderr, "Standalone mode not yet implemented\n");
-	exit(1);
+	/* Standalone mode */
+	struct sockaddr_in sin;
+	lsocket = socket(PF_INET, SOCK_STREAM, 0);
+	if (lsocket < 0) {
+	    perror("socket");
+	    exit(Error);
+	}
+	setsockopt(lsocket, SOL_SOCKET, SO_REUSEADDR, (char *) &SockParmEnable,
+		   sizeof(SockParmEnable));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(opt_port);
+	sin.sin_addr.s_addr = opt_bind_addr.s_addr;
+	if (bind(lsocket, (struct sockaddr *) &sin, sizeof(struct sockaddr))) {
+	    perror("bind");
+	    fprintf(stderr, "Couldn't bind to tcp port %d\n", opt_port);
+	    exit(Error);
+	}
+	if (listen(lsocket, 1) < 0) {
+	    perror("listen");
+	    exit(Error);
+	}
+	LSocketFd = &lsocket;
     }
 
-    if (OpenPort(DeviceName, LockFileName, DeviceFd) == Error)
-	return Error;
+    /* Main loop with fd's control. General note: We basically have
+       three states:
 
-    /* Initialize the input buffer */
-    InitBuffer(&ToDevBuf);
-    InitBuffer(&ToNetBuf);
+       1) No client connection, no open port
+       2) Client connected, port not yet open
+       3) Client connected, port open
 
-    SetSocketOptions(*InSocketFd, *OutSocketFd);
-    ioctl(*DeviceFd, FIONBIO, &SockParmEnable);
-
-    InitTelnetStateMachine();
-    SendTelnetInitialOptions(&ToNetBuf);
-
-    /* Main loop with fd's control */
+       This means that if DeviceFd is set, InSocketFd and OutSocketFd
+       should be set as well. */
     while (True) {
 	struct timeval now;
 	struct timeval newpolltime;
 	struct timeval BTimeout;
-	int highest_fd = -1;
+	int highest_fd = -1, selret;
 
 	/* Set up fd sets */
 	FD_ZERO(&InFdSet);
@@ -1347,6 +1383,10 @@ main(int argc, char **argv)
 	    FD_SET(*DeviceFd, &InFdSet);
 	    highest_fd = MAX(highest_fd, *DeviceFd);
 	}
+	if (LSocketFd) {
+	    FD_SET(*LSocketFd, &InFdSet);
+	    highest_fd = MAX(highest_fd, *LSocketFd);
+	}
 
 	FD_ZERO(&OutFdSet);
 	if (!IsBufferEmpty(&ToDevBuf) && DeviceFd) {
@@ -1358,10 +1398,22 @@ main(int argc, char **argv)
 	    highest_fd = MAX(highest_fd, *OutSocketFd);
 	}
 
+	if (highest_fd == -1) {
+	    /* Nothing more to do */
+	    exit(NoError);
+	}
+
 	BTimeout.tv_sec = PollInterval / 1000;
 	BTimeout.tv_usec = (PollInterval % 1000) * 1000;
 
-	if (select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout) > 0) {
+	selret = select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout);
+	if (selret < 0) {
+	    snprintf(LogStr, sizeof(LogStr), "select error: %d", errno);
+	    LogStr[sizeof(LogStr) - 1] = '\0';
+	    LogMsg(LOG_ERR, LogStr);
+	    exit(Error);
+	}
+	else if (selret > 0) {
 	    /* Handle buffers in the following order:
 	       Serial input
 	       Serial output
@@ -1380,7 +1432,11 @@ main(int argc, char **argv)
 		   produce EscWriteChar_bytes of network data. */
 		trybytes = MIN(sizeof(readbuf), BufferRoomLeft(&ToNetBuf) / EscWriteChar_bytes);
 		iobytes = read(*DeviceFd, &readbuf, trybytes);
-		if (!IOResultError(iobytes, "Error reading from device", "EOF from device")) {
+		if (IOResultError(iobytes, "Error reading from device", "EOF from device")) {
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		}
+		else {
 		    for (i = 0; i < iobytes; i++) {
 			EscWriteChar(&ToNetBuf, readbuf[i]);
 		    }
@@ -1391,7 +1447,11 @@ main(int argc, char **argv)
 		/* Write to serial port */
 		p = GetBufferString(&ToDevBuf, &trybytes);
 		iobytes = write(*DeviceFd, p, trybytes);
-		if (!IOResultError(iobytes, "Error writing to device.", "EOF from device")) {
+		if (IOResultError(iobytes, "Error writing to device.", "EOF to device")) {
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		}
+		else {
 		    BufferPopBytes(&ToDevBuf, iobytes);
 		}
 	    }
@@ -1400,7 +1460,11 @@ main(int argc, char **argv)
 		/* Write to network */
 		p = GetBufferString(&ToNetBuf, &trybytes);
 		iobytes = write(*OutSocketFd, p, trybytes);
-		if (!IOResultError(iobytes, "Error writing to network", "EOF from network")) {
+		if (IOResultError(iobytes, "Error writing to network", "EOF to network")) {
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		}
+		else {
 		    BufferPopBytes(&ToNetBuf, iobytes);
 		}
 	    }
@@ -1413,10 +1477,60 @@ main(int argc, char **argv)
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToNetBuf) / EscRedirectChar_bytes_SockB);
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToDevBuf) / EscRedirectChar_bytes_DevB);
 		iobytes = read(*InSocketFd, &readbuf, trybytes);
-		if (!IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
+		if (IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		}
+		else {
 		    for (i = 0; i < iobytes; i++) {
 			EscRedirectChar(&ToNetBuf, &ToDevBuf, *DeviceFd, readbuf[i]);
 		    }
+		}
+	    }
+
+	    /* accept new connections */
+	    if (LSocketFd && FD_ISSET(*LSocketFd, &InFdSet)) {
+		struct sockaddr addr;
+		socklen_t addrlen = sizeof(addr);
+		int csock;
+
+		/* FIXME: Might be a good idea to log the client addr */
+		LogMsg(LOG_NOTICE, "New connection");
+		csock = accept(*LSocketFd, &addr, &addrlen);
+		if (csock < 0) {
+		    /* FIXME: Log what kind of error. */
+		    LogMsg(LOG_ERR, "Error accepting socket");
+		}
+		else if (InSocketFd && OutSocketFd) {
+		    /* We can only handle one connection at a time. */
+		    LogMsg(LOG_ERR, "Another client connected, dropping new connection");
+		    close(csock);
+		}
+		else {
+		    /* Set up networking */
+		    insocket = csock;
+		    outsocket = csock;
+		    InSocketFd = &insocket;
+		    OutSocketFd = &outsocket;
+		    SetSocketOptions(*InSocketFd, *OutSocketFd);
+		    InitBuffer(&ToNetBuf);
+		    InitTelnetStateMachine();
+		    SendTelnetInitialOptions(&ToNetBuf);
+		}
+	    }
+
+	    /* Open serial port if not yet open */
+	    if (InSocketFd && OutSocketFd && !DeviceFd) {
+		DeviceFd = &devicefd;
+		if (OpenPort(DeviceName, LockFileName, DeviceFd) == Error) {
+		    /* Emulate the inetd behaviour: Close the connection. */
+		    DropConnection(NULL, InSocketFd, OutSocketFd);
+		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		}
+		else {
+		    /* Successfully opened port */
+		    InitBuffer(&ToDevBuf);
+		    ioctl(*DeviceFd, FIONBIO, &SockParmEnable);
 		}
 	    }
 	}
