@@ -1537,7 +1537,6 @@ main(int argc, char **argv)
 		else {
 		    /* Successfully opened port */
 		    InitBuffer(&ToDevBuf);
-		    ioctl(*DeviceFd, FIONBIO, &SockParmEnable);
 		}
 	    }
 	}
