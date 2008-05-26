@@ -48,12 +48,7 @@
 #include <errno.h>		/* errno */
 #include <time.h>		/* CLOCKS_PER_SEC */
 #include <sys/time.h>		/* gettimeofday */
-#include <sys/ioctl.h>		/* ioctl */
 #include <fcntl.h>		/* open */
-#include <netinet/in.h>		/* htonl */
-#include <netinet/ip.h>		/* IPTOS_LOWDELAY */
-#include <arpa/inet.h>		/* inet_addr */
-#include <sys/socket.h>		/* setsockopt */
 #include <assert.h>		/* assert */
 #include "sercd.h"
 #include "unix.h"
