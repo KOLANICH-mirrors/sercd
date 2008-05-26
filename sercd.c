@@ -1374,12 +1374,12 @@ main(int argc, char **argv)
 
 	/* Set up fd sets */
 	FD_ZERO(&InFdSet);
-	if (BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
-	    BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB) && InSocketFd) {
+	if (DeviceFd && BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
+	    InSocketFd && BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB)) {
 	    FD_SET(*InSocketFd, &InFdSet);
 	    highest_fd = MAX(highest_fd, *InSocketFd);
 	}
-	if (BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes) && InputFlow && DeviceFd) {
+	if (DeviceFd && BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes) && InputFlow) {
 	    FD_SET(*DeviceFd, &InFdSet);
 	    highest_fd = MAX(highest_fd, *DeviceFd);
 	}
@@ -1389,11 +1389,11 @@ main(int argc, char **argv)
 	}
 
 	FD_ZERO(&OutFdSet);
-	if (!IsBufferEmpty(&ToDevBuf) && DeviceFd) {
+	if (DeviceFd && !IsBufferEmpty(&ToDevBuf)) {
 	    FD_SET(*DeviceFd, &OutFdSet);
 	    highest_fd = MAX(highest_fd, *DeviceFd);
 	}
-	if (!IsBufferEmpty(&ToNetBuf) && OutSocketFd) {
+	if (OutSocketFd && !IsBufferEmpty(&ToNetBuf)) {
 	    FD_SET(*OutSocketFd, &OutFdSet);
 	    highest_fd = MAX(highest_fd, *OutSocketFd);
 	}
