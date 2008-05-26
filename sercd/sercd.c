@@ -340,9 +340,6 @@ InitTelnetStateMachine(void)
 void
 SetSocketOptions(SERCD_SOCKET insocket, SERCD_SOCKET outsocket)
 {
-    /* Generic socket parameter */
-    int SockParm;
-
     /* Socket setup flag */
     int SockParmEnable = 1;
 
@@ -353,10 +350,12 @@ SetSocketOptions(SERCD_SOCKET insocket, SERCD_SOCKET outsocket)
     setsockopt(outsocket, SOL_SOCKET, SO_KEEPALIVE, (char *) &SockParmEnable,
 	       sizeof(SockParmEnable));
 #ifndef WIN32
+    /* Generic socket parameter */
+    int SockParm;
+
     SockParm = IPTOS_LOWDELAY;
     setsockopt(insocket, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
     setsockopt(outsocket, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
-#endif
 
     /* Make reads/writes non-blocking. In principle, non-blocking IO
        is not necessary, since we are using select. However, the Linux
@@ -368,6 +367,7 @@ SetSocketOptions(SERCD_SOCKET insocket, SERCD_SOCKET outsocket)
        size. */
     ioctl(outsocket, FIONBIO, &SockParmEnable);
     ioctl(insocket, FIONBIO, &SockParmEnable);
+#endif
 }
 
 /* Initialize a buffer for operation */
