@@ -9,6 +9,11 @@
 #define SERCD_UNIX_H
 
 #include <syslog.h>
+#include <sys/ioctl.h>		/* ioctl */
+#include <netinet/in.h>		/* htonl */
+#include <netinet/ip.h>		/* IPTOS_LOWDELAY */
+#include <arpa/inet.h>		/* inet_addr */
+#include <sys/socket.h>		/* setsockopt */
 
 #define PORTHANDLE int
 
