@@ -8,6 +8,7 @@
 #ifndef SERCD_WIN_H
 #define SERCD_WIN_H
 #include <windows.h>
+#include <ws2tcpip.h>
 
 #define PORTHANDLE HANDLE
 
