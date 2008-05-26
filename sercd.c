@@ -1522,6 +1522,10 @@ main(int argc, char **argv)
 	    if (InSocketFd && OutSocketFd && !DeviceFd) {
 		DeviceFd = &devicefd;
 		if (OpenPort(DeviceName, LockFileName, DeviceFd) == Error) {
+		    /* Open failed */
+		    snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.", DeviceName);
+		    LogStr[sizeof(LogStr) - 1] = '\0';
+		    LogMsg(LOG_ERR, LogStr);
 		    /* Emulate the inetd behaviour: Close the connection. */
 		    DropConnection(NULL, InSocketFd, OutSocketFd);
 		    InSocketFd = OutSocketFd = DeviceFd = NULL;

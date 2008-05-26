@@ -658,10 +658,6 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 
     /* Open the device */
     if ((*PortFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NONBLOCK, 0)) == OpenError) {
-	/* Open failed */
-	snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.", DeviceName);
-	LogStr[sizeof(LogStr) - 1] = '\0';
-	LogMsg(LOG_ERR, LogStr);
 	return (Error);
     }
 
