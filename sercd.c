@@ -363,7 +363,14 @@ SetSocketOptions(SERCD_SOCKET insocket, SERCD_SOCKET outsocket)
     setsockopt(outsocket, SOL_IP, IP_TOS, &SockParm, sizeof(SockParm));
 #endif
 
-    /* Make reads/writes unblocking */
+    /* Make reads/writes non-blocking. In principle, non-blocking IO
+       is not necessary, since we are using select. However, the Linux
+       select man page BUGS section contains: "Under Linux, select()
+       may report a socket file descriptor as "ready for reading",
+       while nevertheless a subsequent read blocks." Besides, we need
+       to use non-blocking for the serial port anyway, and using
+       non-blocking means that we don't need to check the send buffer
+       size. */
     ioctl(outsocket, FIONBIO, &SockParmEnable);
     ioctl(insocket, FIONBIO, &SockParmEnable);
 }
