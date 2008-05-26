@@ -475,8 +475,8 @@ BreakFunction(int unused)
        because this function is almost never called */
     unused = unused;
 
-    /* Same as the exit function */
-    ExitFunction();
+    /* ExitFunction will be called through atexit */
+    exit(NoError);
 #else /* COMMENT */
 
     unsigned char LineState;
