@@ -23,8 +23,6 @@
 
 extern Boolean BreakSignaled;
 
-extern Boolean DeviceOpened;
-
 extern Boolean StdErrLogging;
 
 extern int MaxLogLevel;
@@ -668,8 +666,6 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 	LogMsg(LOG_ERR, LogStr);
 	return (Error);
     }
-    else
-	DeviceOpened = True;
 
     /* Get the actual port settings */
     tcgetattr(*PortFd, &InitialPortSettings);
@@ -699,8 +695,7 @@ ClosePort(PORTHANDLE PortFd, const char *LockFileName)
 	tcsetattr(PortFd, TCSANOW, &InitialPortSettings);
 
     /* Closes the device */
-    if (DeviceOpened == True)
-	close(PortFd);
+    close(PortFd);
 
     /* Removes the lock file */
     HDBUnlockFile(LockFileName, getpid());
