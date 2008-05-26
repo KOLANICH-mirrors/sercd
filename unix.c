@@ -661,7 +661,7 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
     }
 
     /* Open the device */
-    if ((*PortFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NDELAY, 0)) == OpenError) {
+    if ((*PortFd = open(DeviceName, O_RDWR | O_NOCTTY | O_NONBLOCK, 0)) == OpenError) {
 	/* Open failed */
 	snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.", DeviceName);
 	LogStr[sizeof(LogStr) - 1] = '\0';
@@ -687,10 +687,6 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 
     /* Write the port settings to device */
     tcsetattr(*PortFd, TCSANOW, &PortSettings);
-
-    /* Reset the device fd to blocking mode */
-    if (fcntl(*PortFd, F_SETFL, fcntl(*PortFd, F_GETFL) & ~(O_NDELAY)) == OpenError)
-	LogMsg(LOG_ERR, "Unable to reset device to non blocking mode, ignoring.");
 
     return NoError;
 }
