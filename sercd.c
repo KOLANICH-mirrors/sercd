@@ -1243,7 +1243,7 @@ main(int argc, char **argv)
 	    opt_port = strtol(optarg, NULL, 10);
 	    if (opt_port == 0) {
 		fprintf(stderr, "Invalid port\n");
-		exit(1);
+		exit(Error);
 	    }
 	    break;
 	case 'l':
@@ -1265,7 +1265,7 @@ main(int argc, char **argv)
     /* Check the command line argument count */
     if (argc - optind < 3 || argc - optind > 4) {
 	Usage();
-	return (Error);
+	exit(Error);
     }
 
     /* Sets the log level */
@@ -1281,7 +1281,7 @@ main(int argc, char **argv)
 	PollInterval = strtol(argv[optind++], &endptr, 0);
 	if (!endptr || *endptr || PollInterval < 0) {
 	    fprintf(stderr, "Invalid polling interval\n");
-	    exit(1);
+	    exit(Error);
 	}
     }
     else {
