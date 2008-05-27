@@ -1433,7 +1433,8 @@ main(int argc, char **argv)
 		iobytes = read(*DeviceFd, &readbuf, trybytes);
 		if (IOResultError(iobytes, "Error reading from device", "EOF from device")) {
 		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
-		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		    InSocketFd = OutSocketFd = NULL;
+		    DeviceFd = NULL;
 		}
 		else {
 		    for (i = 0; i < iobytes; i++) {
@@ -1448,7 +1449,8 @@ main(int argc, char **argv)
 		iobytes = write(*DeviceFd, p, trybytes);
 		if (IOResultError(iobytes, "Error writing to device.", "EOF to device")) {
 		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
-		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		    InSocketFd = OutSocketFd = NULL;
+		    DeviceFd = NULL;
 		}
 		else {
 		    BufferPopBytes(&ToDevBuf, iobytes);
@@ -1461,7 +1463,8 @@ main(int argc, char **argv)
 		iobytes = write(*OutSocketFd, p, trybytes);
 		if (IOResultError(iobytes, "Error writing to network", "EOF to network")) {
 		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
-		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		    InSocketFd = OutSocketFd = NULL;
+		    DeviceFd = NULL;
 		}
 		else {
 		    BufferPopBytes(&ToNetBuf, iobytes);
@@ -1478,7 +1481,8 @@ main(int argc, char **argv)
 		iobytes = read(*InSocketFd, &readbuf, trybytes);
 		if (IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
 		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
-		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		    InSocketFd = OutSocketFd = NULL;
+		    DeviceFd = NULL;
 		}
 		else {
 		    for (i = 0; i < iobytes; i++) {
@@ -1528,7 +1532,8 @@ main(int argc, char **argv)
 		    LogMsg(LOG_ERR, LogStr);
 		    /* Emulate the inetd behaviour: Close the connection. */
 		    DropConnection(NULL, InSocketFd, OutSocketFd);
-		    InSocketFd = OutSocketFd = DeviceFd = NULL;
+		    InSocketFd = OutSocketFd = NULL;
+		    DeviceFd = NULL;
 		}
 		else {
 		    /* Successfully opened port */
