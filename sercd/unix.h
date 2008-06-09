@@ -19,5 +19,7 @@
 
 #define SERCD_SOCKET int
 
+#define closesocket close
+
 #endif /* SERCD_UNIX_H */
 #endif /* WIN32 */
