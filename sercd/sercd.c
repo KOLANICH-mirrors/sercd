@@ -1501,6 +1501,8 @@ main(int argc, char **argv)
 	}
 
 	/* Check the port state and notify the client if it's changed */
+	/* FIXME */
+#ifndef WIN32
 	gettimeofday(&now, NULL);
 	if (timercmp(&now, &LastPoll, <)) {
 	    /* Time moved backwards */
@@ -1536,5 +1538,6 @@ main(int argc, char **argv)
 	    }
 #endif /* COMMENT */
 	}
+#endif /* WIN32 */
     }
 }
