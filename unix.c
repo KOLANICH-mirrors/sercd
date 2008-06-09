@@ -748,4 +748,115 @@ LogMsg(int LogLevel, const char *const Msg)
     }
 }
 
+
+int
+SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
+	    SERCD_SOCKET * SocketOut, SERCD_SOCKET * SocketIn,
+	    SERCD_SOCKET * SocketConnect, long PollInterval)
+{
+    fd_set InFdSet;
+    fd_set OutFdSet;
+    int highest_fd = -1, selret;
+    struct timeval BTimeout;
+    int ret = 0;
+
+    FD_ZERO(&InFdSet);
+    FD_ZERO(&OutFdSet);
+
+    if (DeviceIn) {
+	FD_SET(*DeviceIn, &InFdSet);
+	highest_fd = MAX(highest_fd, *DeviceIn);
+    }
+    if (DeviceOut) {
+	FD_SET(*DeviceOut, &OutFdSet);
+	highest_fd = MAX(highest_fd, *DeviceOut);
+    }
+    if (SocketOut) {
+	FD_SET(*SocketOut, &OutFdSet);
+	highest_fd = MAX(highest_fd, *SocketOut);
+    }
+    if (SocketIn) {
+	FD_SET(*SocketIn, &InFdSet);
+	highest_fd = MAX(highest_fd, *SocketIn);
+    }
+    if (SocketConnect) {
+	FD_SET(*SocketConnect, &InFdSet);
+	highest_fd = MAX(highest_fd, *SocketConnect);
+    }
+
+    BTimeout.tv_sec = PollInterval / 1000;
+    BTimeout.tv_usec = (PollInterval % 1000) * 1000;
+
+    selret = select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout);
+
+    if (selret <= 0)
+	return selret;
+
+    if (DeviceIn && FD_ISSET(*DeviceIn, &InFdSet)) {
+	ret |= SERCD_EV_DEVICEIN;
+    }
+    if (DeviceOut && FD_ISSET(*DeviceOut, &OutFdSet)) {
+	ret |= SERCD_EV_DEVICEOUT;
+    }
+    if (SocketOut && FD_ISSET(*SocketOut, &OutFdSet)) {
+	ret |= SERCD_EV_SOCKETOUT;
+    }
+    if (SocketIn && FD_ISSET(*SocketIn, &InFdSet)) {
+	ret |= SERCD_EV_SOCKETIN;
+    }
+    if (SocketConnect && FD_ISSET(*SocketConnect, &InFdSet)) {
+	ret |= SERCD_EV_SOCKETCONNECT;
+    }
+
+    return ret;
+}
+
+void
+NewListener(SERCD_SOCKET LSocketFd)
+{
+
+}
+
+/* Drop client connection and close serial port */
+void
+DropConnection(PORTHANDLE * DeviceFd, SERCD_SOCKET * InSocketFd, SERCD_SOCKET * OutSocketFd,
+	       const char *LockFileName)
+{
+    if (DeviceFd) {
+	ClosePort(*DeviceFd, LockFileName);
+    }
+
+    if (InSocketFd) {
+	close(*InSocketFd);
+    }
+
+    if (OutSocketFd) {
+	close(*OutSocketFd);
+    }
+}
+
+ssize_t
+WriteToDev(PORTHANDLE port, const void *buf, size_t count)
+{
+    return write(port, buf, count);
+}
+
+ssize_t
+ReadFromDev(PORTHANDLE port, void *buf, size_t count)
+{
+    return read(port, buf, count);
+}
+
+ssize_t
+WriteToNet(SERCD_SOCKET sock, const void *buf, size_t count)
+{
+    return write(sock, buf, count);
+}
+
+ssize_t
+ReadFromNet(SERCD_SOCKET sock, void *buf, size_t count)
+{
+    return read(sock, buf, count);
+}
+
 #endif /* WIN32 */

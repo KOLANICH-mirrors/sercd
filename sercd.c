@@ -112,14 +112,6 @@
 /* Default modem state polling in milliseconds (100 msec should be enough) */
 #define DEFAULT_POLL_INTERVAL 100
 
-/* macros */
-#ifndef MAX
-#define MAX(x,y)                (((x) > (y)) ? (x) : (y))
-#endif
-#ifndef MIN
-#define MIN(x,y)                (((x) > (y)) ? (y) : (x))
-#endif
-
 /* timeval macros */
 #ifndef timerisset
 #define timerisset(tvp)\
@@ -450,14 +442,7 @@ BufferPopBytes(BufferType * B, unsigned int len)
 void
 ExitFunction(void)
 {
-    /* Closes the sockets */
-    if (InSocketFd)
-	close(*InSocketFd);
-    if (OutSocketFd)
-	close(*OutSocketFd);
-
-    if (DeviceFd)
-	ClosePort(*DeviceFd, LockFileName);
+    DropConnection(DeviceFd, InSocketFd, OutSocketFd, LockFileName);
 
     /* Program termination notification */
     LogMsg(LOG_NOTICE, "sercd stopped.");
@@ -1173,24 +1158,6 @@ IOResultError(int iobytes, const char *err, const char *eof_err)
     return False;
 }
 
-
-/* Drop client connection and close serial port */
-void
-DropConnection(PORTHANDLE * DeviceFd, SERCD_SOCKET * InSocketFd, SERCD_SOCKET * OutSocketFd)
-{
-    if (DeviceFd) {
-	close(*DeviceFd);
-    }
-
-    if (InSocketFd) {
-	close(*InSocketFd);
-    }
-
-    if (OutSocketFd) {
-	close(*OutSocketFd);
-    }
-}
-
 void
 Usage(void)
 {
@@ -1213,12 +1180,6 @@ Usage(void)
 int
 main(int argc, char **argv)
 {
-    /* Input fd set */
-    fd_set InFdSet;
-
-    /* Output fd set */
-    fd_set OutFdSet;
-
     /* Chars read */
     char readbuf[512];
 
@@ -1354,6 +1315,7 @@ main(int argc, char **argv)
 	    exit(Error);
 	}
 	LSocketFd = &lsocket;
+	NewListener(*LSocketFd);
     }
 
     /* Main loop with fd's control. General note: We basically have
@@ -1368,44 +1330,33 @@ main(int argc, char **argv)
     while (True) {
 	struct timeval now;
 	struct timeval newpolltime;
-	struct timeval BTimeout;
-	int highest_fd = -1, selret;
+	int selret;
 
-	/* Set up fd sets */
-	FD_ZERO(&InFdSet);
-	if (DeviceFd && BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
-	    InSocketFd && BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB)) {
-	    FD_SET(*InSocketFd, &InFdSet);
-	    highest_fd = MAX(highest_fd, *InSocketFd);
-	}
+	PORTHANDLE *DeviceIn = NULL;
+	PORTHANDLE *DeviceOut = NULL;
+	SERCD_SOCKET *SocketOut = NULL;
+	SERCD_SOCKET *SocketIn = NULL;
+
 	if (DeviceFd && BufferHasRoomFor(&ToNetBuf, EscWriteChar_bytes) && InputFlow) {
-	    FD_SET(*DeviceFd, &InFdSet);
-	    highest_fd = MAX(highest_fd, *DeviceFd);
+	    DeviceIn = DeviceFd;
 	}
-	if (LSocketFd) {
-	    FD_SET(*LSocketFd, &InFdSet);
-	    highest_fd = MAX(highest_fd, *LSocketFd);
-	}
-
-	FD_ZERO(&OutFdSet);
 	if (DeviceFd && !IsBufferEmpty(&ToDevBuf)) {
-	    FD_SET(*DeviceFd, &OutFdSet);
-	    highest_fd = MAX(highest_fd, *DeviceFd);
+	    DeviceOut = DeviceFd;
 	}
 	if (OutSocketFd && !IsBufferEmpty(&ToNetBuf)) {
-	    FD_SET(*OutSocketFd, &OutFdSet);
-	    highest_fd = MAX(highest_fd, *OutSocketFd);
+	    SocketOut = OutSocketFd;
+	}
+	if (DeviceFd && BufferHasRoomFor(&ToDevBuf, EscRedirectChar_bytes_DevB) &&
+	    InSocketFd && BufferHasRoomFor(&ToNetBuf, EscRedirectChar_bytes_SockB)) {
+	    SocketIn = InSocketFd;
 	}
 
-	if (highest_fd == -1) {
+	if (!DeviceIn && !DeviceOut && !SocketOut && !SocketIn && !LSocketFd) {
 	    /* Nothing more to do */
 	    exit(NoError);
 	}
 
-	BTimeout.tv_sec = PollInterval / 1000;
-	BTimeout.tv_usec = (PollInterval % 1000) * 1000;
-
-	selret = select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout);
+	selret = SercdSelect(DeviceIn, DeviceOut, SocketOut, SocketIn, LSocketFd, PollInterval);
 	if (selret < 0) {
 	    snprintf(LogStr, sizeof(LogStr), "select error: %d", errno);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
@@ -1419,22 +1370,26 @@ main(int argc, char **argv)
 	       Network output
 	       Network input
 
-	       Motivation: Needs to read away data from the serial port
-	       to prevent buffer overruns. Needs to drain our buffers as
-	       fast as possible, to reduce latency and make room for more. */
-	    int iobytes;
+	       Motivation: Needs to read away data from the serial
+	       port to prevent buffer overruns. Needs to drain our
+	       buffers as fast as possible, to reduce latency and make
+	       room for more. This order should be used in function
+	       signatures etc as well.
+	     */
+	    ssize_t iobytes;
 	    unsigned int i, trybytes;
 	    unsigned char *p;
 
-	    if (DeviceFd && FD_ISSET(*DeviceFd, &InFdSet)) {
+	    if (selret & SERCD_EV_DEVICEIN) {
 		/* Read from serial port. Each serial port byte might
 		   produce EscWriteChar_bytes of network data. */
 		trybytes = MIN(sizeof(readbuf), BufferRoomLeft(&ToNetBuf) / EscWriteChar_bytes);
-		iobytes = read(*DeviceFd, &readbuf, trybytes);
+		iobytes = ReadFromDev(*DeviceFd, &readbuf, trybytes);
 		if (IOResultError(iobytes, "Error reading from device", "EOF from device")) {
-		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd, LockFileName);
 		    InSocketFd = OutSocketFd = NULL;
 		    DeviceFd = NULL;
+		    continue;
 		}
 		else {
 		    for (i = 0; i < iobytes; i++) {
@@ -1443,46 +1398,49 @@ main(int argc, char **argv)
 		}
 	    }
 
-	    if (DeviceFd && FD_ISSET(*DeviceFd, &OutFdSet)) {
+	    if (selret & SERCD_EV_DEVICEOUT) {
 		/* Write to serial port */
 		p = GetBufferString(&ToDevBuf, &trybytes);
-		iobytes = write(*DeviceFd, p, trybytes);
+		iobytes = WriteToDev(*DeviceFd, p, trybytes);
 		if (IOResultError(iobytes, "Error writing to device.", "EOF to device")) {
-		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd, LockFileName);
 		    InSocketFd = OutSocketFd = NULL;
 		    DeviceFd = NULL;
+		    continue;
 		}
 		else {
 		    BufferPopBytes(&ToDevBuf, iobytes);
 		}
 	    }
 
-	    if (OutSocketFd && FD_ISSET(*OutSocketFd, &OutFdSet)) {
+	    if (selret & SERCD_EV_SOCKETOUT) {
 		/* Write to network */
 		p = GetBufferString(&ToNetBuf, &trybytes);
-		iobytes = write(*OutSocketFd, p, trybytes);
+		iobytes = WriteToNet(*OutSocketFd, p, trybytes);
 		if (IOResultError(iobytes, "Error writing to network", "EOF to network")) {
-		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd, LockFileName);
 		    InSocketFd = OutSocketFd = NULL;
 		    DeviceFd = NULL;
+		    continue;
 		}
 		else {
 		    BufferPopBytes(&ToNetBuf, iobytes);
 		}
 	    }
 
-	    if (InSocketFd && DeviceFd && FD_ISSET(*InSocketFd, &InFdSet)) {
+	    if (selret & SERCD_EV_SOCKETIN) {
 		/* Read from network. Each network byte might produce
 		   EscRedirectChar_bytes_DevB or or up to
 		   EscRedirectChar_bytes_SockB network data. */
 		trybytes = sizeof(readbuf);
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToNetBuf) / EscRedirectChar_bytes_SockB);
 		trybytes = MIN(trybytes, BufferRoomLeft(&ToDevBuf) / EscRedirectChar_bytes_DevB);
-		iobytes = read(*InSocketFd, &readbuf, trybytes);
+		iobytes = ReadFromNet(*InSocketFd, readbuf, trybytes);
 		if (IOResultError(iobytes, "Error readbuf from network.", "EOF from network")) {
-		    DropConnection(DeviceFd, InSocketFd, OutSocketFd);
+		    DropConnection(DeviceFd, InSocketFd, OutSocketFd, LockFileName);
 		    InSocketFd = OutSocketFd = NULL;
 		    DeviceFd = NULL;
+		    continue;
 		}
 		else {
 		    for (i = 0; i < iobytes; i++) {
@@ -1492,7 +1450,7 @@ main(int argc, char **argv)
 	    }
 
 	    /* accept new connections */
-	    if (LSocketFd && FD_ISSET(*LSocketFd, &InFdSet)) {
+	    if (selret & SERCD_EV_SOCKETCONNECT) {
 		struct sockaddr addr;
 		socklen_t addrlen = sizeof(addr);
 		int csock;
@@ -1507,14 +1465,12 @@ main(int argc, char **argv)
 		else if (InSocketFd && OutSocketFd) {
 		    /* We can only handle one connection at a time. */
 		    LogMsg(LOG_ERR, "Another client connected, dropping new connection");
-		    close(csock);
+		    closesocket(csock);
 		}
 		else {
 		    /* Set up networking */
 		    insocket = csock;
-		    outsocket = csock;
-		    InSocketFd = &insocket;
-		    OutSocketFd = &outsocket;
+		    OutSocketFd = InSocketFd = &insocket;
 		    SetSocketOptions(*InSocketFd, *OutSocketFd);
 		    InitBuffer(&ToNetBuf);
 		    InitTelnetStateMachine();
@@ -1527,13 +1483,15 @@ main(int argc, char **argv)
 		DeviceFd = &devicefd;
 		if (OpenPort(DeviceName, LockFileName, DeviceFd) == Error) {
 		    /* Open failed */
-		    snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.", DeviceName);
+		    snprintf(LogStr, sizeof(LogStr), "Unable to open device %s. Exiting.",
+			     DeviceName);
 		    LogStr[sizeof(LogStr) - 1] = '\0';
 		    LogMsg(LOG_ERR, LogStr);
 		    /* Emulate the inetd behaviour: Close the connection. */
-		    DropConnection(NULL, InSocketFd, OutSocketFd);
+		    DropConnection(NULL, InSocketFd, OutSocketFd, LockFileName);
 		    InSocketFd = OutSocketFd = NULL;
 		    DeviceFd = NULL;
+		    continue;
 		}
 		else {
 		    /* Successfully opened port */
