@@ -26,6 +26,7 @@ static OVERLAPPED *DeviceOverlapped = NULL;
 static OVERLAPPED DeviceOverlapped_struct = { 0 };
 static DWORD DeviceCommEvents;
 static BOOL DeviceWritable = TRUE;
+static BOOL DeviceModemEvents = FALSE;
 static DWORD DeviceReadChars = 0;
 
 /* Retrieves the port speed from PortFd */
@@ -178,7 +179,8 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
     }
 
     /* Set event mask */
-    if (!SetCommMask(*PortFd, EV_BREAK | EV_RXCHAR | EV_TXEMPTY)) {
+    if (!SetCommMask(*PortFd,
+		     EV_BREAK | EV_CTS | EV_DSR | EV_RING | EV_RLSD | EV_RXCHAR | EV_TXEMPTY)) {
 	snprintf(LogStr, sizeof(LogStr), "SetCommMask failed.");
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_NOTICE, LogStr);
@@ -219,7 +221,7 @@ ClosePort(PORTHANDLE PortFd, const char *LockFileName)
 }
 
 int
-SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
+SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemState,
 	    SERCD_SOCKET * SocketOut, SERCD_SOCKET * SocketIn,
 	    SERCD_SOCKET * SocketListen, long PollInterval)
 {
@@ -230,18 +232,39 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
     int DeviceIndex = -1;
     WSANETWORKEVENTS events;
     BOOL waitcomm;
-    PORTHANDLE *Device;
-    SERCD_SOCKET *Socket;
+    PORTHANDLE *Device = NULL;
+    SERCD_SOCKET *Socket = NULL;
     char LogStr[TmpStrLen];
 
     if (DeviceIn && DeviceOut) {
 	assert(DeviceIn == DeviceOut);
     }
+    if (DeviceOut && ModemState) {
+	assert(DeviceOut == ModemState);
+    }
+    if (DeviceIn && ModemState) {
+	assert(DeviceIn == ModemState);
+    }
+    if (DeviceIn) {
+	Device = DeviceIn;
+    }
+    if (DeviceOut) {
+	Device = DeviceOut;
+    }
+    if (ModemState) {
+	Device = ModemState;
+    }
+
     if (SocketOut && SocketIn) {
 	assert(SocketOut == SocketIn);
     }
-    Device = DeviceIn ? DeviceIn : DeviceOut;
-    Socket = SocketOut ? SocketOut : SocketIn;
+    if (SocketOut) {
+	Socket = SocketOut;
+    }
+    if (SocketIn) {
+	Socket = SocketIn;
+    }
+
 
     if (Device) {
 	if (!DeviceOverlapped) {
@@ -266,6 +289,9 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
 		}
 		if (DeviceCommEvents & EV_TXEMPTY) {
 		    DeviceWritable = TRUE;
+		}
+		if (DeviceCommEvents & (EV_CTS | EV_DSR | EV_RING | EV_RLSD)) {
+		    DeviceModemEvents = TRUE;
 		}
 	    }
 	    else if (GetLastError() != ERROR_IO_PENDING) {
@@ -325,6 +351,9 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
 	if (DeviceCommEvents & EV_TXEMPTY) {
 	    DeviceWritable = TRUE;
 	}
+	if (DeviceCommEvents & (EV_CTS | EV_DSR | EV_RING | EV_RLSD)) {
+	    DeviceModemEvents = TRUE;
+	}
     }
 
     if (waitret == WAIT_OBJECT_0 + SocketListenIndex) {
@@ -367,6 +396,11 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
     }
     if (DeviceOut && DeviceWritable) {
 	ret |= SERCD_EV_DEVICEOUT;
+    }
+    if (ModemState && DeviceModemEvents) {
+	ret |= SERCD_EV_MODEMSTATE;
+	/* edge triggered */
+	DeviceModemEvents = FALSE;
     }
     if (SocketOut && SocketWritable) {
 	ret |= SERCD_EV_SOCKETOUT;
