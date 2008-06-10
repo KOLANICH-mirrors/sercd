@@ -31,13 +31,15 @@ static DWORD DeviceReadChars = 0;
 
 
 /* Wrapper for GetCommState which logs errors */
-static BOOL SercdGetCommState(HANDLE hFile, DCB *dcb)
+static BOOL
+SercdGetCommState(HANDLE hFile, DCB * dcb)
 {
     char LogStr[TmpStrLen];
-    
+
     if (GetCommState(hFile, dcb)) {
 	return TRUE;
-    } else {
+    }
+    else {
 	snprintf(LogStr, sizeof(LogStr), "GetCommState failed with error 0x%lx", GetLastError());
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_ERR, LogStr);
