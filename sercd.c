@@ -1524,19 +1524,6 @@ main(int argc, char **argv)
 		LogStr[sizeof(LogStr) - 1] = '\0';
 		LogMsg(LOG_DEBUG, LogStr);
 	    }
-#ifdef COMMENT
-	    /* GetLineState() not yet implemented */
-	    if (DeviceFd
-		&& (GetLineState(*DeviceFd, LineState) & LineStateMask) !=
-		(LineState & LineStateMask)) {
-		LineState = GetLineState(*DeviceFd, LineState);
-		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_LINESTATE, (LineState & LineStateMask));
-		snprintf(LogStr, sizeof(LogStr), "Sent line state: %u",
-			 (unsigned int) (LineState & LineStateMask));
-		LogStr[sizeof(LogStr) - 1] = '\0';
-		LogMsg(LOG_DEBUG, LogStr);
-	    }
-#endif /* COMMENT */
 	}
 #endif /* WIN32 */
     }
