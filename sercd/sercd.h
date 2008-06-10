@@ -30,7 +30,7 @@ void ExitFunction(void);
 void BreakFunction(int unused);
 
 /* Abstract platform-independent select function */
-int SercdSelect(PORTHANDLE *DeviceIn, PORTHANDLE *DeviceOut,
+int SercdSelect(PORTHANDLE *DeviceIn, PORTHANDLE *DeviceOut, PORTHANDLE *Modemstate,
 		SERCD_SOCKET *SocketOut, SERCD_SOCKET *SocketIn,
 		SERCD_SOCKET *SocketConnect, long PollInterval);
 #define SERCD_EV_DEVICEIN 1
@@ -38,6 +38,7 @@ int SercdSelect(PORTHANDLE *DeviceIn, PORTHANDLE *DeviceOut,
 #define SERCD_EV_SOCKETOUT 4
 #define SERCD_EV_SOCKETIN 8
 #define SERCD_EV_SOCKETCONNECT 16
+#define SERCD_EV_MODEMSTATE 32
 
 /* macros */
 #ifndef MAX

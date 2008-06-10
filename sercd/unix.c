@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>		/* gettimeofday */
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -26,6 +27,8 @@ extern Boolean BreakSignaled;
 extern Boolean StdErrLogging;
 
 extern int MaxLogLevel;
+
+static struct timeval LastPoll = { 0, 0 };
 
 /* Initial serial port settings */
 static struct termios *InitialPortSettings;
@@ -750,7 +753,7 @@ LogMsg(int LogLevel, const char *const Msg)
 
 
 int
-SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
+SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * Modemstate,
 	    SERCD_SOCKET * SocketOut, SERCD_SOCKET * SocketIn,
 	    SERCD_SOCKET * SocketConnect, long PollInterval)
 {
@@ -758,6 +761,7 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
     fd_set OutFdSet;
     int highest_fd = -1, selret;
     struct timeval BTimeout;
+    struct timeval newpoll;
     int ret = 0;
 
     FD_ZERO(&InFdSet);
@@ -789,7 +793,7 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
 
     selret = select(highest_fd + 1, &InFdSet, &OutFdSet, NULL, &BTimeout);
 
-    if (selret <= 0)
+    if (selret < 0)
 	return selret;
 
     if (DeviceIn && FD_ISSET(*DeviceIn, &InFdSet)) {
@@ -806,6 +810,20 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
     }
     if (SocketConnect && FD_ISSET(*SocketConnect, &InFdSet)) {
 	ret |= SERCD_EV_SOCKETCONNECT;
+    }
+
+    if (Modemstate) {
+	gettimeofday(&newpoll, NULL);
+	if (timercmp(&newpoll, &LastPoll, <)) {
+	    /* Time moved backwards */
+	    timerclear(&LastPoll);
+	}
+	newpoll.tv_sec -= PollInterval / 1000;
+	newpoll.tv_usec -= PollInterval % 1000;
+	if (timercmp(&LastPoll, &newpoll, <)) {
+	    gettimeofday(&LastPoll, NULL);
+	    ret |= SERCD_EV_MODEMSTATE;
+	}
     }
 
     return ret;
