@@ -29,18 +29,42 @@ static BOOL DeviceWritable = TRUE;
 static BOOL DeviceModemEvents = FALSE;
 static DWORD DeviceReadChars = 0;
 
+
+/* Wrapper for GetCommState which logs errors */
+static BOOL SercdGetCommState(HANDLE hFile, DCB *dcb)
+{
+    char LogStr[TmpStrLen];
+    
+    if (GetCommState(hFile, dcb)) {
+	return TRUE;
+    } else {
+	snprintf(LogStr, sizeof(LogStr), "GetCommState failed with error 0x%lx", GetLastError());
+	LogStr[sizeof(LogStr) - 1] = '\0';
+	LogMsg(LOG_ERR, LogStr);
+	return FALSE;
+    }
+}
+
 /* Retrieves the port speed from PortFd */
 unsigned long int
 GetPortSpeed(PORTHANDLE PortFd)
 {
-    assert(0);
+    DCB PortSettings;
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+    return PortSettings.BaudRate;
 }
 
 /* Retrieves the data size from PortFd */
 unsigned char
 GetPortDataSize(PORTHANDLE PortFd)
 {
-    assert(0);
+    DCB PortSettings;
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+    return PortSettings.ByteSize;
 }
 
 /* Retrieves the parity settings from PortFd */
