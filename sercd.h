@@ -67,6 +67,67 @@ Boolean;
 #define TNASC_SET_MODEMSTATE_MASK ((unsigned char) 111)
 #define TNASC_PURGE_DATA ((unsigned char) 112)
 
+/* CPC set parity */
+#define TNCOM_PARITY_REQUEST ((unsigned char) 0)
+#define TNCOM_NOPARITY ((unsigned char) 1)
+#define TNCOM_ODDPARITY ((unsigned char) 2)
+#define TNCOM_EVENPARITY ((unsigned char) 3)
+#define TNCOM_MARKPARITY ((unsigned char) 4)
+#define TNCOM_SPACEPARITY ((unsigned char) 5)
+
+/* CPC set stopsize */
+#define TNCOM_STOPSIZE_REQUEST ((unsigned char) 0)
+#define TNCOM_ONESTOPBIT ((unsigned char) 1)
+#define TNCOM_TWOSTOPBITS ((unsigned char) 2)
+#define TNCOM_ONE5STOPBITS ((unsigned char) 3)
+
+/* CPC commands */
+#define TNCOM_CMD_FLOW_REQ ((unsigned char) 0)
+#define TNCOM_CMD_FLOW_NONE ((unsigned char) 1)
+#define TNCOM_CMD_FLOW_XONXOFF ((unsigned char) 2)
+#define TNCOM_CMD_FLOW_HARDWARE ((unsigned char) 3)
+#define TNCOM_CMD_BREAK_REQ ((unsigned char) 4)
+#define TNCOM_CMD_BREAK_ON ((unsigned char) 5)
+#define TNCOM_CMD_BREAK_OFF ((unsigned char) 6)
+#define TNCOM_CMD_DTR_REQ ((unsigned char) 7)
+#define TNCOM_CMD_DTR_ON ((unsigned char) 8)
+#define TNCOM_CMD_DTR_OFF ((unsigned char) 9)
+#define TNCOM_CMD_RTS_REQ ((unsigned char) 10)
+#define TNCOM_CMD_RTS_ON ((unsigned char) 11)
+#define TNCOM_CMD_RTS_OFF ((unsigned char) 12)
+#define TNCOM_CMD_INFLOW_REQ ((unsigned char) 13)
+#define TNCOM_CMD_INFLOW_NONE ((unsigned char) 14)
+#define TNCOM_CMD_INFLOW_XONXOFF ((unsigned char) 15)
+#define TNCOM_CMD_INFLOW_HARDWARE ((unsigned char) 16)
+#define TNCOM_CMD_FLOW_DCD ((unsigned char) 17)
+#define TNCOM_CMD_INFLOW_DTR ((unsigned char) 18)
+#define TNCOM_CMD_FLOW_DSR ((unsigned char) 19)
+
+/* CPC linestate mask and notifies */
+#define TNCOM_LINEMASK_TIMEOUT ((unsigned char) 128)
+#define TNCOM_LINEMASK_TRANS_SHIFT_EMTPY ((unsigned char) 64)
+#define TNCOM_LINEMASK_TRANS_HOLD_EMPTY ((unsigned char) 32)
+#define TNCOM_LINEMASK_BREAK_ERR ((unsigned char) 16)
+#define TNCOM_LINEMASK_FRAME_ERR ((unsigned char) 8)
+#define TNCOM_LINEMASK_PARITY_ERR ((unsigned char) 4)
+#define TNCOM_LINEMASK_OVERRUN_ERR ((unsigned char) 2)
+#define TNCOM_LINEMASK_DATA_RD ((unsigned char) 1)
+
+/* CPC modemstate mask and notifies */
+#define TNCOM_MODMASK_RLSD ((unsigned char) 128)
+#define TNCOM_MODMASK_RING ((unsigned char) 64)
+#define TNCOM_MODMASK_DSR ((unsigned char) 32)
+#define TNCOM_MODMASK_CTS ((unsigned char) 16)
+#define TNCOM_MODMASK_RLSD_DELTA ((unsigned char) 8)
+#define TNCOM_MODMASK_RING_TRAIL ((unsigned char) 4)
+#define TNCOM_MODMASK_DSR_DELTA ((unsigned char) 2)
+#define TNCOM_MODMASK_CTS_DELTA ((unsigned char) 1)
+
+/* CPC purge data */
+#define TNCOM_PURGE_RX ((unsigned char) 1)
+#define TNCOM_PURGE_TX ((unsigned char) 2)
+#define TNCOM_PURGE_BOTH ((unsigned char) 3)
+
 /* Generic log function with log level control. Uses the same log levels
 of the syslog(3) system call */
 void LogMsg(int LogLevel, const char *const Msg);
