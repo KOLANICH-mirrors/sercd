@@ -47,7 +47,6 @@
 #include <unistd.h>		/* close */
 #include <errno.h>		/* errno */
 #include <time.h>		/* CLOCKS_PER_SEC */
-#include <sys/time.h>		/* gettimeofday */
 #include <fcntl.h>		/* open */
 #include <assert.h>		/* assert */
 #include "sercd.h"
@@ -1188,7 +1187,6 @@ main(int argc, char **argv)
 
     /* Poll interval and timer */
     long PollInterval;
-    struct timeval LastPoll = { 0, 0 };
 
     /* Buffer to Device from Network */
     BufferType ToDevBuf;
@@ -1328,12 +1326,11 @@ main(int argc, char **argv)
        This means that if DeviceFd is set, InSocketFd and OutSocketFd
        should be set as well. */
     while (True) {
-	struct timeval now;
-	struct timeval newpolltime;
 	int selret;
 
 	PORTHANDLE *DeviceIn = NULL;
 	PORTHANDLE *DeviceOut = NULL;
+	PORTHANDLE *Modemstate = NULL;
 	SERCD_SOCKET *SocketOut = NULL;
 	SERCD_SOCKET *SocketIn = NULL;
 
@@ -1342,6 +1339,10 @@ main(int argc, char **argv)
 	}
 	if (DeviceFd && !IsBufferEmpty(&ToDevBuf)) {
 	    DeviceOut = DeviceFd;
+	}
+	if (DeviceFd && PortControlEnable && InputFlow &&
+	    BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
+	    Modemstate = DeviceFd;
 	}
 	if (OutSocketFd && !IsBufferEmpty(&ToNetBuf)) {
 	    SocketOut = OutSocketFd;
@@ -1356,7 +1357,8 @@ main(int argc, char **argv)
 	    exit(NoError);
 	}
 
-	selret = SercdSelect(DeviceIn, DeviceOut, SocketOut, SocketIn, LSocketFd, PollInterval);
+	selret = SercdSelect(DeviceIn, DeviceOut, Modemstate, SocketOut, SocketIn,
+			     LSocketFd, PollInterval);
 	if (selret < 0) {
 	    snprintf(LogStr, sizeof(LogStr), "select error: %d", errno);
 	    LogStr[sizeof(LogStr) - 1] = '\0';
@@ -1498,33 +1500,21 @@ main(int argc, char **argv)
 		    InitBuffer(&ToDevBuf);
 		}
 	    }
-	}
 
-	/* Check the port state and notify the client if it's changed */
-	/* FIXME */
-#ifndef WIN32
-	gettimeofday(&now, NULL);
-	if (timercmp(&now, &LastPoll, <)) {
-	    /* Time moved backwards */
-	    timerclear(&LastPoll);
-	}
-	newpolltime.tv_sec = LastPoll.tv_sec + PollInterval / 1000;
-	newpolltime.tv_usec = LastPoll.tv_usec + PollInterval % 1000;
-	if (timercmp(&newpolltime, &now, <) && PortControlEnable && DeviceFd && InputFlow
-	    && BufferHasRoomFor(&ToNetBuf, SendCPCByteCommand_bytes)) {
-	    unsigned char newstate;
-	    LastPoll = now;
-	    newstate = GetModemState(*DeviceFd, ModemState);
-	    if ((newstate & ModemStateMask) != (ModemState & ModemStateMask)) {
-		ModemState = newstate;
-		SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
-				   (ModemState & ModemStateMask));
-		snprintf(LogStr, sizeof(LogStr), "Sent modem state: %u",
-			 (unsigned int) (ModemState & ModemStateMask));
-		LogStr[sizeof(LogStr) - 1] = '\0';
-		LogMsg(LOG_DEBUG, LogStr);
+	    /* Check the port state and notify the client if it's changed */
+	    if (selret & SERCD_EV_MODEMSTATE) {
+		unsigned char newstate;
+		newstate = GetModemState(*DeviceFd, ModemState);
+		if ((newstate & ModemStateMask) != (ModemState & ModemStateMask)) {
+		    ModemState = newstate;
+		    SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
+				       (ModemState & ModemStateMask));
+		    snprintf(LogStr, sizeof(LogStr), "Sent modem state: %u",
+			     (unsigned int) (ModemState & ModemStateMask));
+		    LogStr[sizeof(LogStr) - 1] = '\0';
+		    LogMsg(LOG_DEBUG, LogStr);
+		}
 	    }
 	}
-#endif /* WIN32 */
     }
 }
