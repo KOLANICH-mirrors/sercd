@@ -5,11 +5,119 @@
  */
 
 #ifdef WIN32
+#include "sercd.h"
 #include "win.h"
 
 #include <stdio.h>
+#include <assert.h>
+#include <errno.h>
 
 extern int MaxLogLevel;
+
+/* Initial serial port settings */
+static DCB *InitialPortSettings;
+static DCB initialportsettings;
+
+static HANDLE SocketEvent = INVALID_HANDLE_VALUE;
+static BOOL SocketWritable = FALSE;
+
+static HANDLE DeviceEvent = INVALID_HANDLE_VALUE;
+static OVERLAPPED *DeviceOverlapped = NULL;
+static OVERLAPPED DeviceOverlapped_struct = { 0 };
+static DWORD DeviceCommEvents;
+static BOOL DeviceWritable = TRUE;
+static DWORD DeviceReadChars = 0;
+
+/* Retrieves the port speed from PortFd */
+unsigned long int
+GetPortSpeed(PORTHANDLE PortFd)
+{
+    assert(0);
+}
+
+/* Retrieves the data size from PortFd */
+unsigned char
+GetPortDataSize(PORTHANDLE PortFd)
+{
+    assert(0);
+}
+
+/* Retrieves the parity settings from PortFd */
+unsigned char
+GetPortParity(PORTHANDLE PortFd)
+{
+    assert(0);
+}
+
+/* Retrieves the stop bits size from PortFd */
+unsigned char
+GetPortStopSize(PORTHANDLE PortFd)
+{
+    assert(0);
+}
+
+/* Retrieves the flow control status, including DTR and RTS status,
+from PortFd */
+unsigned char
+GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
+{
+    assert(0);
+}
+
+/* Return the status of the modem control lines (DCD, CTS, DSR, RNG) */
+unsigned char
+GetModemState(PORTHANDLE PortFd, unsigned char PMState)
+{
+    assert(0);
+}
+
+/* Set the serial port data size */
+void
+SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
+{
+    assert(0);
+}
+
+/* Set the serial port parity */
+void
+SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
+{
+    assert(0);
+}
+
+/* Set the serial port stop bits size */
+void
+SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
+{
+    assert(0);
+}
+
+/* Set the port flow control and DTR and RTS status */
+void
+SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
+{
+    assert(0);
+}
+
+/* Set the serial port speed */
+void
+SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
+{
+    assert(0);
+}
+
+void
+SetBreak(PORTHANDLE PortFd, int duration)
+{
+    assert(0);
+}
+
+void
+SetFlush(PORTHANDLE PortFd, int selector)
+{
+    assert(0);
+}
+
 
 void
 PlatformInit()
@@ -39,5 +147,373 @@ LogMsg(int LogLevel, const char *const Msg)
     }
 }
 
+int
+OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
+{
+    DCB PortSettings;
+    char LogStr[TmpStrLen];
+
+    *PortFd = CreateFile(DeviceName, GENERIC_READ | GENERIC_WRITE,
+			 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    if (*PortFd == INVALID_HANDLE_VALUE) {
+	return Error;
+    }
+
+    /* Get the actual port settings */
+    InitialPortSettings = &initialportsettings;
+
+    /* Get the actual port settings */
+    InitialPortSettings->DCBlength = sizeof(DCB);
+    GetCommState(*PortFd, InitialPortSettings);
+    GetCommState(*PortFd, &PortSettings);
+
+    PortSettings.fBinary = TRUE;
+
+    /* Write the port settings to device */
+    if (!SetCommState(*PortFd, &PortSettings)) {
+	snprintf(LogStr, sizeof(LogStr), "Unable to configure port %s", DeviceName);
+	LogStr[sizeof(LogStr) - 1] = '\0';
+	LogMsg(LOG_NOTICE, LogStr);
+	return Error;
+    }
+
+    /* Set event mask */
+    if (!SetCommMask(*PortFd, EV_BREAK | EV_RXCHAR | EV_TXEMPTY)) {
+	snprintf(LogStr, sizeof(LogStr), "SetCommMask failed.");
+	LogStr[sizeof(LogStr) - 1] = '\0';
+	LogMsg(LOG_NOTICE, LogStr);
+	return Error;
+    }
+
+    /* Event destroyed by ClosePort */
+    DeviceEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    return NoError;
+}
+
+void
+ClosePort(PORTHANDLE PortFd, const char *LockFileName)
+{
+    /* Cancel pending WaitCommEvent */
+    if (DeviceOverlapped) {
+	DWORD undefined;
+	if (!SetCommMask(PortFd, 0)) {
+	    LogMsg(LOG_CRIT, "DropConnection:SetCommMask failed");
+	    /* The overlapped WaitCommEvent might still be
+	       running. We cannot continue. */
+	    exit(1);
+	}
+	/* Ignore errors */
+	GetOverlappedResult(PortFd, DeviceOverlapped, &undefined, FALSE);
+	DeviceOverlapped = NULL;
+    }
+    CloseHandle(DeviceEvent);
+    DeviceEvent = INVALID_HANDLE_VALUE;
+
+    /* Restores initial port settings */
+    if (InitialPortSettings)
+	SetCommState(PortFd, InitialPortSettings);
+
+    /* Closes the device */
+    CloseHandle(PortFd);
+}
+
+int
+SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut,
+	    SERCD_SOCKET * SocketOut, SERCD_SOCKET * SocketIn,
+	    SERCD_SOCKET * SocketListen, long PollInterval)
+{
+    DWORD waitret, objects = 0;
+    HANDLE ghEvents[2];
+    int ret = 0;
+    int SocketListenIndex = -1;
+    int DeviceIndex = -1;
+    WSANETWORKEVENTS events;
+    BOOL waitcomm;
+    PORTHANDLE *Device;
+    SERCD_SOCKET *Socket;
+    char LogStr[TmpStrLen];
+
+    if (DeviceIn && DeviceOut) {
+	assert(DeviceIn == DeviceOut);
+    }
+    if (SocketOut && SocketIn) {
+	assert(SocketOut == SocketIn);
+    }
+    Device = DeviceIn ? DeviceIn : DeviceOut;
+    Socket = SocketOut ? SocketOut : SocketIn;
+
+    if (Device) {
+	if (!DeviceOverlapped) {
+	    /* Fire overlapped WaitCommEvent */
+	    DeviceOverlapped = &DeviceOverlapped_struct;
+	    DeviceOverlapped->hEvent = DeviceEvent;
+	    waitcomm = WaitCommEvent(*Device, &DeviceCommEvents, DeviceOverlapped);
+	    if (waitcomm) {
+		/* Immediate result. */
+		DeviceOverlapped = NULL;
+		/* Both EV_RXCHAR and EV_TXEMPTY are edge-triggered */
+		if (DeviceCommEvents & EV_RXCHAR) {
+		    DWORD ComErrors;
+		    COMSTAT Stat;
+		    if (!ClearCommError(*Device, &ComErrors, &Stat)) {
+			snprintf(LogStr, sizeof(LogStr), "Communications Error: 0x%lx\n",
+				 ComErrors);
+			LogStr[sizeof(LogStr) - 1] = '\0';
+			LogMsg(LOG_INFO, LogStr);
+		    }
+		    DeviceReadChars = Stat.cbInQue;
+		}
+		if (DeviceCommEvents & EV_TXEMPTY) {
+		    DeviceWritable = TRUE;
+		}
+	    }
+	    else if (GetLastError() != ERROR_IO_PENDING) {
+		errno = EINVAL;
+		return -1;
+	    }
+	}
+	if (DeviceOverlapped) {
+	    /* Pending WaitCommEvent */
+	    DeviceIndex = objects++;
+	    ghEvents[DeviceIndex] = DeviceEvent;
+	}
+    }
+
+    if (SocketListen) {
+	SocketListenIndex = objects++;
+	ghEvents[SocketListenIndex] = SocketEvent;
+    }
+
+    /* Need to wait? */
+    if ((SocketOut && SocketWritable) || (DeviceOut && DeviceWritable) ||
+	(DeviceIn && DeviceReadChars)) {
+	PollInterval = 0;
+    }
+
+    waitret = WaitForMultipleObjects(objects, ghEvents, FALSE, PollInterval);
+    switch (waitret) {
+    case WAIT_OBJECT_0 + 0:
+    case WAIT_OBJECT_0 + 1:
+    case WAIT_TIMEOUT:
+	break;
+
+    default:
+	errno = EINVAL;
+	return -1;
+	break;
+    }
+
+    if (waitret == WAIT_OBJECT_0 + DeviceIndex) {
+	DWORD undefined;
+	waitcomm = GetOverlappedResult(*Device, DeviceOverlapped, &undefined, TRUE);
+	DeviceOverlapped = NULL;
+	if (!waitcomm) {
+	    errno = EINVAL;
+	    return -1;
+	}
+	if (DeviceCommEvents & EV_RXCHAR) {
+	    DWORD ComErrors;
+	    COMSTAT Stat;
+	    if (!ClearCommError(*Device, &ComErrors, &Stat)) {
+		snprintf(LogStr, sizeof(LogStr), "Communications Error: 0x%lx\n", ComErrors);
+		LogStr[sizeof(LogStr) - 1] = '\0';
+		LogMsg(LOG_INFO, LogStr);
+	    }
+	    DeviceReadChars = Stat.cbInQue;
+	}
+	if (DeviceCommEvents & EV_TXEMPTY) {
+	    DeviceWritable = TRUE;
+	}
+    }
+
+    if (waitret == WAIT_OBJECT_0 + SocketListenIndex) {
+	/* Check events on the listening socket */
+	if (WSAEnumNetworkEvents(*SocketListen, NULL, &events)) {
+	    /* error */
+	    errno = EINVAL;
+	    return -1;
+	}
+
+	/* Level-triggered */
+	if (events.lNetworkEvents & FD_ACCEPT) {
+	    ret |= SERCD_EV_SOCKETCONNECT;
+	}
+
+	/* Check events on the connection socket. Reset event. */
+	if (Socket && WSAEnumNetworkEvents(*Socket, SocketEvent, &events)) {
+	    /* error */
+	    errno = EINVAL;
+	    return -1;
+	}
+
+	/* Level-triggered */
+	if (SocketIn && events.lNetworkEvents & FD_READ) {
+	    ret |= SERCD_EV_SOCKETIN;
+	}
+	/* Level-triggered */
+	if (Socket && events.lNetworkEvents & FD_CLOSE) {
+	    ret |= SERCD_EV_SOCKETIN;
+	}
+
+	/* Edge-triggered, sort of */
+	if (events.lNetworkEvents & FD_WRITE) {
+	    SocketWritable = TRUE;
+	}
+    }
+
+    if (DeviceIn && DeviceReadChars) {
+	ret |= SERCD_EV_DEVICEIN;
+    }
+    if (DeviceOut && DeviceWritable) {
+	ret |= SERCD_EV_DEVICEOUT;
+    }
+    if (SocketOut && SocketWritable) {
+	ret |= SERCD_EV_SOCKETOUT;
+    }
+
+    return ret;
+}
+
+
+void
+NewListener(SERCD_SOCKET LSocketFd)
+{
+    /* We are keeping the event until exit. This event is shared by
+       the listening socket and the client connection. */
+    SocketEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    WSAEventSelect(LSocketFd, SocketEvent, FD_ACCEPT | FD_WRITE | FD_READ | FD_CLOSE);
+}
+
+
+/* Drop client connection and close serial port */
+void
+DropConnection(PORTHANDLE * DeviceFd, SERCD_SOCKET * InSocketFd, SERCD_SOCKET * OutSocketFd,
+	       const char *LockFileName)
+{
+    if (DeviceFd) {
+	ClosePort(*DeviceFd, LockFileName);
+    }
+
+    if (InSocketFd) {
+	closesocket(*InSocketFd);
+    }
+
+    if (OutSocketFd) {
+	closesocket(*OutSocketFd);
+    }
+}
+
+/* Workaround for the fact that blocking ReadFile is not possible if
+   the file is opened as overlapped. Stupid Windows. */
+static BOOL
+ReadFileOverlapped(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+		   LPDWORD lpNumberOfBytesRead)
+{
+    BOOL ret;
+    OVERLAPPED ov;
+    static HANDLE ev = INVALID_HANDLE_VALUE;
+
+    if (ev == INVALID_HANDLE_VALUE) {
+	ev = CreateEvent(NULL, TRUE, FALSE, NULL);
+	assert(ev);
+    }
+
+    ov.Internal = 0;
+    ov.InternalHigh = 0;
+    ov.Offset = 0;
+    ov.OffsetHigh = 0;
+    ov.hEvent = ev;
+
+    ret = ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, &ov);
+    if (!ret && GetLastError() == ERROR_IO_PENDING) {
+	ret = GetOverlappedResult(hFile, &ov, lpNumberOfBytesRead, TRUE);
+    }
+    return ret;
+}
+
+
+/* Workaround for the fact that blocking WriteFile is not possible if
+   the file is opened as overlapped. Stupid Windows. */
+static BOOL
+WriteFileOverlapped(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+		    LPDWORD lpNumberOfBytesWritten)
+{
+    BOOL ret;
+    OVERLAPPED ov;
+    static HANDLE ev = INVALID_HANDLE_VALUE;
+
+    if (ev == INVALID_HANDLE_VALUE) {
+	ev = CreateEvent(NULL, TRUE, FALSE, NULL);
+	assert(ev);
+    }
+
+    ov.Internal = 0;
+    ov.InternalHigh = 0;
+    ov.Offset = 0;
+    ov.OffsetHigh = 0;
+    ov.hEvent = ev;
+
+    ret = WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, &ov);
+    if (!ret && GetLastError() == ERROR_IO_PENDING) {
+	ret = GetOverlappedResult(hFile, &ov, lpNumberOfBytesWritten, TRUE);
+    }
+    return ret;
+}
+
+
+ssize_t
+WriteToDev(PORTHANDLE port, const void *buf, size_t count)
+{
+    ssize_t iobytes;
+    if (!WriteFileOverlapped(port, buf, count, &iobytes)) {
+	iobytes = -1;
+    }
+
+    if (iobytes > 0) {
+	DeviceWritable = FALSE;
+    }
+    return iobytes;
+}
+
+ssize_t
+ReadFromDev(PORTHANDLE port, void *buf, size_t count)
+{
+    ssize_t iobytes;
+
+    count = MIN(count, DeviceReadChars);
+
+    if (!ReadFileOverlapped(port, buf, count, &iobytes)) {
+	iobytes = -1;
+    }
+
+    char *charbuf;
+    charbuf = buf;
+    charbuf[iobytes] = '\0';
+
+    if (iobytes > 0) {
+	assert(iobytes <= DeviceReadChars);
+	DeviceReadChars -= iobytes;
+    }
+
+    return iobytes;
+}
+
+ssize_t
+WriteToNet(SERCD_SOCKET sock, const void *buf, size_t count)
+{
+    ssize_t iobytes;
+    iobytes = send(sock, buf, count, 0);
+    if (iobytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
+	SocketWritable = FALSE;
+    }
+    return iobytes;
+}
+
+ssize_t
+ReadFromNet(SERCD_SOCKET sock, void *buf, size_t count)
+{
+    return recv(sock, buf, count, 0);
+}
 
 #endif /* WIN32 */
