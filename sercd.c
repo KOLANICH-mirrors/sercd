@@ -63,22 +63,6 @@
 /* Default modem state polling in milliseconds (100 msec should be enough) */
 #define DEFAULT_POLL_INTERVAL 100
 
-/* timeval macros */
-#ifndef timerisset
-#define timerisset(tvp)\
-         ((tvp)->tv_sec || (tvp)->tv_usec)
-#endif
-#ifndef timercmp
-#define timercmp(tvp, uvp, cmp)\
-        ((tvp)->tv_sec cmp (uvp)->tv_sec ||\
-        (tvp)->tv_sec == (uvp)->tv_sec &&\
-        (tvp)->tv_usec cmp (uvp)->tv_usec)
-#endif
-#ifndef timerclear
-#define timerclear(tvp)\
-        ((tvp)->tv_sec = (tvp)->tv_usec = 0)
-#endif
-
 /* Cisco IOS bug compatibility */
 Boolean CiscoIOSCompatible = False;
 
