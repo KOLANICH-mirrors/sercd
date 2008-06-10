@@ -22,6 +22,22 @@
 #include <stdlib.h>
 #include <signal.h>
 
+/* timeval macros */
+#ifndef timerisset
+#define timerisset(tvp)\
+         ((tvp)->tv_sec || (tvp)->tv_usec)
+#endif
+#ifndef timercmp
+#define timercmp(tvp, uvp, cmp)\
+        ((tvp)->tv_sec cmp (uvp)->tv_sec ||\
+        (tvp)->tv_sec == (uvp)->tv_sec &&\
+        (tvp)->tv_usec cmp (uvp)->tv_usec)
+#endif
+#ifndef timerclear
+#define timerclear(tvp)\
+        ((tvp)->tv_sec = (tvp)->tv_usec = 0)
+#endif
+
 extern Boolean BreakSignaled;
 
 extern Boolean StdErrLogging;
