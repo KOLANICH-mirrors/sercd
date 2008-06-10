@@ -146,12 +146,12 @@ GetPortParity(PORTHANDLE PortFd)
     tcgetattr(PortFd, &PortSettings);
 
     if ((PortSettings.c_cflag & PARENB) == 0)
-	return ((unsigned char) 1);
+	return TNCOM_NOPARITY;
 
-    if ((PortSettings.c_cflag & PARENB) != 0 && (PortSettings.c_cflag & PARODD) != 0)
-	return ((unsigned char) 2);
+    if ((PortSettings.c_cflag & PARENB) && (PortSettings.c_cflag & PARODD))
+	return TNCOM_ODDPARITY;
 
-    return ((unsigned char) 3);
+    return TNCOM_EVENPARITY;
 }
 
 /* Retrieves the stop bits size from PortFd */
@@ -163,9 +163,9 @@ GetPortStopSize(PORTHANDLE PortFd)
     tcgetattr(PortFd, &PortSettings);
 
     if ((PortSettings.c_cflag & CSTOPB) == 0)
-	return ((unsigned char) 1);
+	return TNCOM_ONESTOPBIT;
     else
-	return ((unsigned char) 2);
+	return TNCOM_TWOSTOPBITS;
 }
 
 /* Retrieves the flow control status, including DTR and RTS status,
@@ -183,7 +183,7 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
     /* Check wich kind of information is requested */
     switch (Which) {
 	/* Com Port Flow Control Setting (outbound/both) */
-    case 0:
+    case TNCOM_CMD_FLOW_REQ:
 	if (PortSettings.c_iflag & IXON)
 	    return ((unsigned char) 2);
 	if (PortSettings.c_cflag & CRTSCTS)
@@ -192,7 +192,7 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	break;
 
 	/* BREAK State  */
-    case 4:
+    case TNCOM_CMD_BREAK_REQ:
 	if (BreakSignaled == True)
 	    return ((unsigned char) 5);
 	else
@@ -200,7 +200,7 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	break;
 
 	/* DTR Signal State */
-    case 7:
+    case TNCOM_CMD_DTR_REQ:
 	if (MLines & TIOCM_DTR)
 	    return ((unsigned char) 8);
 	else
@@ -208,7 +208,7 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	break;
 
 	/* RTS Signal State */
-    case 10:
+    case TNCOM_CMD_RTS_REQ:
 	if (MLines & TIOCM_RTS)
 	    return ((unsigned char) 11);
 	else
@@ -216,7 +216,7 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	break;
 
 	/* Com Port Flow Control Setting (inbound) */
-    case 13:
+    case TNCOM_CMD_INFLOW_REQ:
 	if (PortSettings.c_iflag & IXOFF)
 	    return ((unsigned char) 15);
 	if (PortSettings.c_cflag & CRTSCTS)
@@ -244,21 +244,21 @@ GetModemState(PORTHANDLE PortFd, unsigned char PMState)
     ioctl(PortFd, TIOCMGET, &MLines);
 
     if ((MLines & TIOCM_CAR) != 0)
-	MState += (unsigned char) 128;
+	MState += TNCOM_MODMASK_RLSD;
     if ((MLines & TIOCM_RNG) != 0)
-	MState += (unsigned char) 64;
+	MState += TNCOM_MODMASK_RING;
     if ((MLines & TIOCM_DSR) != 0)
-	MState += (unsigned char) 32;
+	MState += TNCOM_MODMASK_DSR;
     if ((MLines & TIOCM_CTS) != 0)
-	MState += (unsigned char) 16;
-    if ((MState & 128) != (PMState & 128))
-	MState += (unsigned char) 8;
-    if ((MState & 64) != (PMState & 64))
-	MState += (unsigned char) 4;
-    if ((MState & 32) != (PMState & 32))
-	MState += (unsigned char) 2;
-    if ((MState & 16) != (PMState & 16))
-	MState += (unsigned char) 1;
+	MState += TNCOM_MODMASK_CTS;
+    if ((MState & TNCOM_MODMASK_RLSD) != (PMState & TNCOM_MODMASK_RLSD))
+	MState += TNCOM_MODMASK_RLSD_DELTA;
+    if ((MState & TNCOM_MODMASK_RING) != (PMState & TNCOM_MODMASK_RING))
+	MState += TNCOM_MODMASK_RING_TRAIL;
+    if ((MState & TNCOM_MODMASK_DSR) != (PMState & TNCOM_MODMASK_DSR))
+	MState += TNCOM_MODMASK_DSR_DELTA;
+    if ((MState & TNCOM_MODMASK_CTS) != (PMState & TNCOM_MODMASK_CTS))
+	MState += TNCOM_MODMASK_CTS_DELTA;
 
     return (MState);
 }
@@ -303,13 +303,13 @@ SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
     tcgetattr(PortFd, &PortSettings);
 
     switch (Parity) {
-    case 1:
+    case TNCOM_NOPARITY:
 	PortSettings.c_cflag = PortSettings.c_cflag & ~PARENB;
 	break;
-    case 2:
+    case TNCOM_ODDPARITY:
 	PortSettings.c_cflag = PortSettings.c_cflag | PARENB | PARODD;
 	break;
-    case 3:
+    case TNCOM_EVENPARITY:
 	PortSettings.c_cflag = (PortSettings.c_cflag | PARENB) & ~PARODD;
 	break;
 	/* There's no support for MARK and SPACE parity so sets no parity */
@@ -331,13 +331,13 @@ SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
     tcgetattr(PortFd, &PortSettings);
 
     switch (StopSize) {
-    case 1:
+    case TNCOM_ONESTOPBIT:
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
 	break;
-    case 2:
+    case TNCOM_TWOSTOPBITS:
 	PortSettings.c_cflag = PortSettings.c_cflag | CSTOPB;
 	break;
-    case 3:
+    case TNCOM_ONE5STOPBITS:
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CSTOPB;
 	LogMsg(LOG_WARNING, "Requested unsupported 1.5 bits stop size, set to 1 bit stop size.");
 	break;
@@ -363,58 +363,58 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
     /* Check which settings to change */
     switch (How) {
 	/* No Flow Control (outbound/both) */
-    case 1:
+    case TNCOM_CMD_FLOW_NONE:
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXON;
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXOFF;
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CRTSCTS;
 	break;
 	/* XON/XOFF Flow Control (outbound/both) */
-    case 2:
+    case TNCOM_CMD_FLOW_XONXOFF:
 	PortSettings.c_iflag = PortSettings.c_iflag | IXON;
 	PortSettings.c_iflag = PortSettings.c_iflag | IXOFF;
 	PortSettings.c_cflag = PortSettings.c_cflag & ~CRTSCTS;
 	break;
 	/* HARDWARE Flow Control (outbound/both) */
-    case 3:
+    case TNCOM_CMD_FLOW_HARDWARE:
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXON;
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXOFF;
 	PortSettings.c_cflag = PortSettings.c_cflag | CRTSCTS;
 	break;
 	/* BREAK State ON */
-    case 5:
+    case TNCOM_CMD_BREAK_ON:
 	tcsendbreak(PortFd, 1);
 	BreakSignaled = True;
 	break;
 	/* BREAK State OFF */
-    case 6:
+    case TNCOM_CMD_BREAK_OFF:
 	/* Should not send another break */
 	/* tcsendbreak(PortFd,0); */
 	BreakSignaled = False;
 	break;
 	/* DTR Signal State ON */
-    case 8:
+    case TNCOM_CMD_DTR_ON:
 	MLines = MLines | TIOCM_DTR;
 	break;
 	/* DTR Signal State OFF */
-    case 9:
+    case TNCOM_CMD_DTR_OFF:
 	MLines = MLines & ~TIOCM_DTR;
 	break;
 	/* RTS Signal State ON */
-    case 11:
+    case TNCOM_CMD_RTS_ON:
 	MLines = MLines | TIOCM_RTS;
 	break;
 	/* RTS Signal State OFF */
-    case 12:
+    case TNCOM_CMD_RTS_OFF:
 	MLines = MLines & ~TIOCM_RTS;
 	break;
 
 	/* INBOUND FLOW CONTROL is ignored */
 	/* No Flow Control (inbound) */
-    case 14:
+    case TNCOM_CMD_INFLOW_NONE:
 	/* XON/XOFF Flow Control (inbound) */
-    case 15:
+    case TNCOM_CMD_INFLOW_XONXOFF:
 	/* HARDWARE Flow Control (inbound) */
-    case 16:
+    case TNCOM_CMD_INFLOW_HARDWARE:
 	LogMsg(LOG_WARNING, "Inbound flow control ignored.");
 	break;
     default:
@@ -514,15 +514,15 @@ SetFlush(PORTHANDLE PortFd, int selector)
 {
     switch (selector) {
 	/* Inbound flush */
-    case 1:
+    case TNCOM_PURGE_RX:
 	tcflush(PortFd, TCIFLUSH);
 	break;
 	/* Outbound flush */
-    case 2:
+    case TNCOM_PURGE_TX:
 	tcflush(PortFd, TCOFLUSH);
 	break;
 	/* Inbound/outbound flush */
-    case 3:
+    case TNCOM_PURGE_BOTH:
 	tcflush(PortFd, TCIOFLUSH);
 	break;
     }

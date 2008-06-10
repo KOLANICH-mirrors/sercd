@@ -806,11 +806,11 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	/* Flow control and DTR/RTS handling */
     case TNCAS_SET_CONTROL:
 	switch (Command[4]) {
-	case 0:
-	case 4:
-	case 7:
-	case 10:
-	case 13:
+	case TNCOM_CMD_FLOW_REQ:
+	case TNCOM_CMD_BREAK_REQ:
+	case TNCOM_CMD_DTR_REQ:
+	case TNCOM_CMD_RTS_REQ:
+	case TNCOM_CMD_INFLOW_REQ:
 	    /* Client is asking for current flow control or DTR/RTS status */
 	    LogMsg(LOG_DEBUG, "Flow control notification requested.");
 	    FlowControl = GetPortFlowControl(PortFd, Command[4]);
@@ -820,7 +820,7 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    LogMsg(LOG_DEBUG, LogStr);
 	    break;
 
-	case 5:
+	case TNCOM_CMD_BREAK_ON:
 	    /* Break command */
 	    SetBreak(PortFd, 1);
 	    BreakSignaled = True;
@@ -828,7 +828,7 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, Command[4]);
 	    break;
 
-	case 6:
+	case TNCOM_CMD_BREAK_OFF:
 	    BreakSignaled = False;
 	    LogMsg(LOG_DEBUG, "Break Signal OFF.");
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, Command[4]);
