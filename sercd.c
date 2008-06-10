@@ -60,54 +60,6 @@
 /* Buffer size */
 #define BufferSize 2048
 
-/* Base Telnet protocol constants (STD 8) */
-#define TNSE ((unsigned char) 240)
-#define TNNOP ((unsigned char) 241)
-#define TNSB ((unsigned char) 250)
-#define TNWILL ((unsigned char) 251)
-#define TNWONT ((unsigned char) 252)
-#define TNDO ((unsigned char) 253)
-#define TNDONT ((unsigned char) 254)
-#define TNIAC ((unsigned char) 255)
-
-/* Base Telnet protocol options constants (STD 27, STD 28, STD 29) */
-#define TN_TRANSMIT_BINARY ((unsigned char) 0)
-#define TN_ECHO ((unsigned char) 1)
-#define TN_SUPPRESS_GO_AHEAD ((unsigned char) 3)
-
-/* Base Telnet Com Port Control (CPC) protocol constants (RFC 2217) */
-#define TNCOM_PORT_OPTION ((unsigned char) 44)
-
-/* CPC Client to Access Server constants */
-#define TNCAS_SIGNATURE ((unsigned char) 0)
-#define TNCAS_SET_BAUDRATE ((unsigned char) 1)
-#define TNCAS_SET_DATASIZE ((unsigned char) 2)
-#define TNCAS_SET_PARITY ((unsigned char) 3)
-#define TNCAS_SET_STOPSIZE ((unsigned char) 4)
-#define TNCAS_SET_CONTROL ((unsigned char) 5)
-#define TNCAS_NOTIFY_LINESTATE ((unsigned char) 6)
-#define TNCAS_NOTIFY_MODEMSTATE ((unsigned char) 7)
-#define TNCAS_FLOWCONTROL_SUSPEND ((unsigned char) 8)
-#define TNCAS_FLOWCONTROL_RESUME ((unsigned char) 9)
-#define TNCAS_SET_LINESTATE_MASK ((unsigned char) 10)
-#define TNCAS_SET_MODEMSTATE_MASK ((unsigned char) 11)
-#define TNCAS_PURGE_DATA ((unsigned char) 12)
-
-/* CPC Access Server to Client constants */
-#define TNASC_SIGNATURE ((unsigned char) 100)
-#define TNASC_SET_BAUDRATE ((unsigned char) 101)
-#define TNASC_SET_DATASIZE ((unsigned char) 102)
-#define TNASC_SET_PARITY ((unsigned char) 103)
-#define TNASC_SET_STOPSIZE ((unsigned char) 104)
-#define TNASC_SET_CONTROL ((unsigned char) 105)
-#define TNASC_NOTIFY_LINESTATE ((unsigned char) 106)
-#define TNASC_NOTIFY_MODEMSTATE ((unsigned char) 107)
-#define TNASC_FLOWCONTROL_SUSPEND ((unsigned char) 108)
-#define TNASC_FLOWCONTROL_RESUME ((unsigned char) 109)
-#define TNASC_SET_LINESTATE_MASK ((unsigned char) 110)
-#define TNASC_SET_MODEMSTATE_MASK ((unsigned char) 111)
-#define TNASC_PURGE_DATA ((unsigned char) 112)
-
 /* Default modem state polling in milliseconds (100 msec should be enough) */
 #define DEFAULT_POLL_INTERVAL 100
 
