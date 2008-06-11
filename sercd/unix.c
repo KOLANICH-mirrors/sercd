@@ -408,16 +408,26 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 	break;
 
 	/* INBOUND FLOW CONTROL is ignored */
-	/* No Flow Control (inbound) */
     case TNCOM_CMD_INFLOW_NONE:
-	/* XON/XOFF Flow Control (inbound) */
     case TNCOM_CMD_INFLOW_XONXOFF:
-	/* HARDWARE Flow Control (inbound) */
     case TNCOM_CMD_INFLOW_HARDWARE:
 	LogMsg(LOG_WARNING, "Inbound flow control ignored.");
 	break;
+
+    case TNCOM_CMD_FLOW_DCD:
+	LogMsg(LOG_WARNING, "DCD Flow Control ignored.");
+	break;
+
+    case TNCOM_CMD_INFLOW_DTR:
+	LogMsg(LOG_WARNING, "DTR Flow Control ignored.");
+	break;
+
+    case TNCOM_CMD_FLOW_DSR:
+	LogMsg(LOG_WARNING, "DSR Flow Control ignored.");
+	break;
+
     default:
-	LogMsg(LOG_WARNING, "Requested unsupported flow control.");
+	LogMsg(LOG_WARNING, "Requested invalid flow control.");
 	break;
     }
 
