@@ -402,7 +402,17 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 void
 SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
 {
-    assert(0);
+    DCB PortSettings;
+
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return;
+    }
+
+    PortSettings.BaudRate = BaudRate;
+
+    if (!SetCommState(PortFd, &PortSettings)) {
+	LogMsg(LOG_NOTICE, "SetPortSpeed: Unable to configure port.");
+    }
 }
 
 void
