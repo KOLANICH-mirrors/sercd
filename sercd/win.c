@@ -72,7 +72,29 @@ GetPortDataSize(PORTHANDLE PortFd)
 unsigned char
 GetPortParity(PORTHANDLE PortFd)
 {
-    assert(0);
+    DCB PortSettings;
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+
+    /* Minimalistic API? Nah... */
+    if (!PortSettings.fParity)
+	PortSettings.Parity = NOPARITY;
+
+    switch (PortSettings.Parity) {
+    case NOPARITY:
+	return TNCOM_NOPARITY;
+    case ODDPARITY:
+	return TNCOM_ODDPARITY;
+    case EVENPARITY:
+	return TNCOM_EVENPARITY;
+    case MARKPARITY:
+	return TNCOM_MARKPARITY;
+    case SPACEPARITY:
+	return TNCOM_SPACEPARITY;
+    default:
+	return TNCOM_NOPARITY;
+    }
 }
 
 /* Retrieves the stop bits size from PortFd */
