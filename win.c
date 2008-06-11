@@ -416,9 +416,18 @@ SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
 }
 
 void
-SetBreak(PORTHANDLE PortFd, int duration)
+SetBreak(PORTHANDLE PortFd, Boolean on)
 {
-    assert(0);
+    if (on) {
+	if (!SetCommBreak(PortFd)) {
+	    LogMsg(LOG_NOTICE, "SetBreak:SetCommBreak failed.");
+	}
+    }
+    else {
+	if (!ClearCommBreak(PortFd)) {
+	    LogMsg(LOG_NOTICE, "SetBreak:ClearCommBreak failed.");
+	}
+    }
 }
 
 void

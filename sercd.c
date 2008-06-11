@@ -198,7 +198,7 @@ void SetPortFlowControl(PORTHANDLE PortFd, unsigned char How);
 void SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate);
 
 /* Serial port break */
-void SetBreak(PORTHANDLE PortFd, int duration);
+void SetBreak(PORTHANDLE PortFd, Boolean on);
 
 /* Flush serial port */
 void SetFlush(PORTHANDLE PortFd, int selector);
@@ -830,13 +830,14 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 
 	case TNCOM_CMD_BREAK_ON:
 	    /* Break command */
-	    SetBreak(PortFd, 1);
+	    SetBreak(PortFd, True);
 	    BreakSignaled = True;
 	    LogMsg(LOG_DEBUG, "Break Signal ON.");
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_ON);
 	    break;
 
 	case TNCOM_CMD_BREAK_OFF:
+	    SetBreak(PortFd, False);
 	    BreakSignaled = False;
 	    LogMsg(LOG_DEBUG, "Break Signal OFF.");
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_OFF);

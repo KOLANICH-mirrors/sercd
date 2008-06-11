@@ -494,9 +494,11 @@ SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
 }
 
 void
-SetBreak(PORTHANDLE PortFd, int duration)
+SetBreak(PORTHANDLE PortFd, Boolean on)
 {
-    tcsendbreak(PortFd, 1);
+    if (on) {
+	tcsendbreak(PortFd, 0);
+    }
 }
 
 void
