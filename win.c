@@ -97,10 +97,6 @@ GetPortParity(PORTHANDLE PortFd)
 	return 0;
     }
 
-    /* Minimalistic API? Nah... */
-    if (!PortSettings.fParity)
-	PortSettings.Parity = NOPARITY;
-
     switch (PortSettings.Parity) {
     case NOPARITY:
 	return TNCOM_NOPARITY;
@@ -240,14 +236,46 @@ GetModemState(PORTHANDLE PortFd, unsigned char PMState)
 void
 SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
 {
-    assert(0);
+    DCB PortSettings;
+
+    PortSettings.ByteSize = DataSize;
+    if (!SetCommState(PortFd, &PortSettings)) {
+	LogMsg(LOG_NOTICE, "SetPortDataSize: Unable to configure port.");
+    }
 }
 
 /* Set the serial port parity */
 void
 SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
 {
-    assert(0);
+    DCB PortSettings;
+
+    switch (Parity) {
+    case TNCOM_ODDPARITY:
+	PortSettings.Parity = ODDPARITY;
+	break;
+
+    case TNCOM_EVENPARITY:
+	PortSettings.Parity = EVENPARITY;
+	break;
+
+    case TNCOM_MARKPARITY:
+	PortSettings.Parity = MARKPARITY;
+	break;
+
+    case TNCOM_SPACEPARITY:
+	PortSettings.Parity = SPACEPARITY;
+	break;
+
+    case TNCOM_NOPARITY:
+    default:
+	PortSettings.Parity = NOPARITY;
+	break;
+    }
+
+    if (!SetCommState(PortFd, &PortSettings)) {
+	LogMsg(LOG_NOTICE, "SetPortDataSize: Unable to configure port.");
+    }
 }
 
 /* Set the serial port stop bits size */
@@ -264,7 +292,7 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
     DCB PortSettings;
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
-	return 0;
+	return;
     }
 
     /* Check which settings to change */
@@ -409,6 +437,7 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
     GetCommState(*PortFd, &PortSettings);
 
     PortSettings.fBinary = TRUE;
+    PortSettings.fParity = FALSE;
 
     /* Write the port settings to device */
     if (!SetCommState(*PortFd, &PortSettings)) {
