@@ -383,7 +383,7 @@ RFC 2217          Telnet Com Port Control Option            October 1997
        the following value table:
 
             Value      Parity [1]
-              0           Request Current Data Size
+              0           Request Current Parity
               1           NONE
               2           ODD
               3           EVEN
@@ -411,7 +411,7 @@ RFC 2217          Telnet Com Port Control Option            October 1997
        value is an index into the following value table:
 
            Value      Stop Bit Size
-             0           Request Current Data Size
+             0           Request Current Stop Bits
              1           1
              2           2
              3           1.5
