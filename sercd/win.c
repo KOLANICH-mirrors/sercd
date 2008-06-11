@@ -101,7 +101,20 @@ GetPortParity(PORTHANDLE PortFd)
 unsigned char
 GetPortStopSize(PORTHANDLE PortFd)
 {
-    assert(0);
+    DCB PortSettings;
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+    switch (PortSettings.StopBits) {
+    case ONESTOPBIT:
+	return TNCOM_ONESTOPBIT;
+    case ONE5STOPBITS:
+	return TNCOM_ONE5STOPBITS;
+    case TWOSTOPBITS:
+	return TNCOM_TWOSTOPBITS;
+    default:
+	return TNCOM_ONESTOPBIT;
+    }
 }
 
 /* Retrieves the flow control status, including DTR and RTS status,
