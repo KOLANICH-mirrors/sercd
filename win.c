@@ -294,7 +294,7 @@ SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
     DCB PortSettings;
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
-	return 0;
+	return;
     }
 
     switch (StopSize) {
