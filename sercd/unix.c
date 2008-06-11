@@ -185,51 +185,51 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	/* Com Port Flow Control Setting (outbound/both) */
     case TNCOM_CMD_FLOW_REQ:
 	if (PortSettings.c_iflag & IXON)
-	    return ((unsigned char) 2);
+	    return TNCOM_CMD_FLOW_XONXOFF;
 	if (PortSettings.c_cflag & CRTSCTS)
-	    return ((unsigned char) 3);
-	return ((unsigned char) 1);
+	    return TNCOM_CMD_FLOW_HARDWARE;
+	return TNCOM_CMD_FLOW_NONE;
 	break;
 
 	/* BREAK State  */
     case TNCOM_CMD_BREAK_REQ:
 	if (BreakSignaled == True)
-	    return ((unsigned char) 5);
+	    return TNCOM_CMD_BREAK_ON;
 	else
-	    return ((unsigned char) 6);
+	    return TNCOM_CMD_BREAK_OFF;
 	break;
 
 	/* DTR Signal State */
     case TNCOM_CMD_DTR_REQ:
 	if (MLines & TIOCM_DTR)
-	    return ((unsigned char) 8);
+	    return TNCOM_CMD_DTR_ON;
 	else
-	    return ((unsigned char) 9);
+	    return TNCOM_CMD_DTR_OFF;
 	break;
 
 	/* RTS Signal State */
     case TNCOM_CMD_RTS_REQ:
 	if (MLines & TIOCM_RTS)
-	    return ((unsigned char) 11);
+	    return TNCOM_CMD_RTS_ON;
 	else
-	    return ((unsigned char) 12);
+	    return TNCOM_CMD_RTS_OFF;
 	break;
 
 	/* Com Port Flow Control Setting (inbound) */
     case TNCOM_CMD_INFLOW_REQ:
 	if (PortSettings.c_iflag & IXOFF)
-	    return ((unsigned char) 15);
+	    return TNCOM_CMD_INFLOW_XONXOFF;
 	if (PortSettings.c_cflag & CRTSCTS)
-	    return ((unsigned char) 16);
-	return ((unsigned char) 14);
+	    return TNCOM_CMD_INFLOW_HARDWARE;
+	return TNCOM_CMD_INFLOW_NONE;
 	break;
 
     default:
 	if (PortSettings.c_iflag & IXON)
-	    return ((unsigned char) 2);
+	    return TNCOM_CMD_FLOW_XONXOFF;
 	if (PortSettings.c_cflag & CRTSCTS)
-	    return ((unsigned char) 3);
-	return ((unsigned char) 1);
+	    return TNCOM_CMD_FLOW_HARDWARE;
+	return TNCOM_CMD_FLOW_NONE;
 	break;
     }
 }
