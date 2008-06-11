@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <errno.h>
 
+extern Boolean BreakSignaled;
+
 extern int MaxLogLevel;
 
 /* Initial serial port settings */
@@ -40,6 +42,24 @@ SercdGetCommState(HANDLE hFile, DCB * dcb)
     }
     else {
 	snprintf(LogStr, sizeof(LogStr), "GetCommState failed with error 0x%lx", GetLastError());
+	LogStr[sizeof(LogStr) - 1] = '\0';
+	LogMsg(LOG_ERR, LogStr);
+	return FALSE;
+    }
+}
+
+/* Wrapper for GetCommModemStatus which logs errors */
+static BOOL
+SercdGetCommModemStatus(HANDLE hFile, DWORD * lpModemStat)
+{
+    char LogStr[TmpStrLen];
+
+    if (GetCommModemStatus(hFile, lpModemStat)) {
+	return TRUE;
+    }
+    else {
+	snprintf(LogStr, sizeof(LogStr), "GetCommModemStatus failed with error 0x%lx",
+		 GetLastError());
 	LogStr[sizeof(LogStr) - 1] = '\0';
 	LogMsg(LOG_ERR, LogStr);
 	return FALSE;
@@ -122,7 +142,67 @@ from PortFd */
 unsigned char
 GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 {
-    assert(0);
+    DCB PortSettings;
+    DWORD MLines;
+
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+
+    if (!SercdGetCommModemStatus(PortFd, &MLines)) {
+	return 0;
+    }
+
+    /* Check wich kind of information is requested */
+    switch (Which) {
+	/* BREAK State  */
+    case TNCOM_CMD_BREAK_REQ:
+	if (BreakSignaled == True)
+	    return TNCOM_CMD_BREAK_ON;
+	else
+	    return TNCOM_CMD_BREAK_OFF;
+	break;
+
+	/* DTR Signal State */
+    case TNCOM_CMD_DTR_REQ:
+	/* See comment in unix.c */
+	if (MLines & MS_DSR_ON)
+	    return TNCOM_CMD_DTR_ON;
+	else
+	    return TNCOM_CMD_DTR_OFF;
+	break;
+
+	/* RTS Signal State */
+    case TNCOM_CMD_RTS_REQ:
+	/* See comment in unix.c */
+	if (MLines & MS_CTS_ON)
+	    return TNCOM_CMD_RTS_ON;
+	else
+	    return TNCOM_CMD_RTS_OFF;
+	break;
+
+	/* Com Port Flow Control Setting (inbound) */
+    case TNCOM_CMD_INFLOW_REQ:
+	if (PortSettings.fInX)
+	    return TNCOM_CMD_INFLOW_XONXOFF;
+	if (PortSettings.fOutxCtsFlow)
+	    return TNCOM_CMD_INFLOW_HARDWARE;
+	return TNCOM_CMD_INFLOW_NONE;
+	break;
+
+	/* Com Port Flow Control Setting (outbound/both) */
+    case TNCOM_CMD_FLOW_REQ:
+    default:
+	if (PortSettings.fOutX)
+	    return TNCOM_CMD_FLOW_XONXOFF;
+	if (PortSettings.fOutxCtsFlow)
+	    return TNCOM_CMD_FLOW_HARDWARE;
+	if (PortSettings.fOutxDsrFlow)
+	    return TNCOM_CMD_FLOW_DSR;
+	/* No support for DCD/RLSD flow control */
+	return TNCOM_CMD_FLOW_NONE;
+	break;
+    }
 }
 
 /* Return the status of the modem control lines (DCD, CTS, DSR, RNG) */
