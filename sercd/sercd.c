@@ -807,7 +807,6 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
     case TNCAS_SET_CONTROL:
 	switch (Command[4]) {
 	case TNCOM_CMD_FLOW_REQ:
-	case TNCOM_CMD_BREAK_REQ:
 	case TNCOM_CMD_DTR_REQ:
 	case TNCOM_CMD_RTS_REQ:
 	case TNCOM_CMD_INFLOW_REQ:
@@ -820,18 +819,27 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    LogMsg(LOG_DEBUG, LogStr);
 	    break;
 
+	case TNCOM_CMD_BREAK_REQ:
+	    if (BreakSignaled) {
+		SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_ON);
+	    }
+	    else {
+		SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_OFF);
+	    }
+	    break;
+
 	case TNCOM_CMD_BREAK_ON:
 	    /* Break command */
 	    SetBreak(PortFd, 1);
 	    BreakSignaled = True;
 	    LogMsg(LOG_DEBUG, "Break Signal ON.");
-	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, Command[4]);
+	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_ON);
 	    break;
 
 	case TNCOM_CMD_BREAK_OFF:
 	    BreakSignaled = False;
 	    LogMsg(LOG_DEBUG, "Break Signal OFF.");
-	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, Command[4]);
+	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, TNCOM_CMD_BREAK_OFF);
 	    break;
 
 	default:
@@ -843,14 +851,15 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
 	    SetPortFlowControl(PortFd, Command[4]);
 
 	    /* Flow control status confirmation */
-	    if (CiscoIOSCompatible && Command[4] >= 13 && Command[4] <= 16)
+	    if (CiscoIOSCompatible && Command[4] >= TNCOM_CMD_INFLOW_REQ
+		&& Command[4] <= TNCOM_CMD_INFLOW_HARDWARE)
 		/* INBOUND not supported separately.
 		   Following the behavior of Cisco ISO 11.3
 		 */
 		FlowControl = 0;
 	    else
 		/* Return the actual port flow control settings */
-		FlowControl = GetPortFlowControl(PortFd, 0);
+		FlowControl = GetPortFlowControl(PortFd, TNCOM_CMD_FLOW_REQ);
 
 	    SendCPCByteCommand(SockB, TNASC_SET_CONTROL, FlowControl);
 	    snprintf(LogStr, sizeof(LogStr), "Port flow control: %u", (unsigned int) FlowControl);
