@@ -182,15 +182,6 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
     /* Check wich kind of information is requested */
     switch (Which) {
-	/* Com Port Flow Control Setting (outbound/both) */
-    case TNCOM_CMD_FLOW_REQ:
-	if (PortSettings.c_iflag & IXON)
-	    return TNCOM_CMD_FLOW_XONXOFF;
-	if (PortSettings.c_cflag & CRTSCTS)
-	    return TNCOM_CMD_FLOW_HARDWARE;
-	return TNCOM_CMD_FLOW_NONE;
-	break;
-
 	/* BREAK State  */
     case TNCOM_CMD_BREAK_REQ:
 	if (BreakSignaled == True)
@@ -230,6 +221,8 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 	return TNCOM_CMD_INFLOW_NONE;
 	break;
 
+	/* Com Port Flow Control Setting (outbound/both) */
+    case TNCOM_CMD_FLOW_REQ:
     default:
 	if (PortSettings.c_iflag & IXON)
 	    return TNCOM_CMD_FLOW_XONXOFF;
