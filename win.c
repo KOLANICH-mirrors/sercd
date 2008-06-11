@@ -433,9 +433,28 @@ SetBreak(PORTHANDLE PortFd, Boolean on)
 void
 SetFlush(PORTHANDLE PortFd, int selector)
 {
-    assert(0);
-}
+    DWORD flags;
 
+    switch (selector) {
+	/* Inbound flush */
+    case TNCOM_PURGE_RX:
+	flags = PURGE_RXCLEAR;
+	break;
+	/* Outbound flush */
+    case TNCOM_PURGE_TX:
+	flags = PURGE_TXCLEAR;
+	break;
+	/* Inbound/outbound flush */
+    case TNCOM_PURGE_BOTH:
+    default:
+	flags = PURGE_RXCLEAR | PURGE_TXCLEAR;
+	break;
+    }
+
+    if (!PurgeComm(PortFd, flags)) {
+	LogMsg(LOG_NOTICE, "SetFlush:PurgeComm failed.");
+    }
+}
 
 void
 PlatformInit()
