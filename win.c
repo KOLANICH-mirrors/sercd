@@ -261,7 +261,83 @@ SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
 void
 SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 {
-    assert(0);
+    DCB PortSettings;
+
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+
+    /* Check which settings to change */
+    switch (How) {
+	/* No Flow Control (outbound/both) */
+    case TNCOM_CMD_FLOW_NONE:
+	PortSettings.fOutxCtsFlow = FALSE;
+	PortSettings.fOutxDsrFlow = FALSE;
+	PortSettings.fRtsControl = RTS_CONTROL_DISABLE;
+	PortSettings.fOutX = FALSE;
+	PortSettings.fInX = FALSE;
+	break;
+	/* XON/XOFF Flow Control (outbound/both) */
+    case TNCOM_CMD_FLOW_XONXOFF:
+	PortSettings.fOutxCtsFlow = FALSE;
+	PortSettings.fOutxDsrFlow = FALSE;
+	PortSettings.fRtsControl = RTS_CONTROL_DISABLE;
+	PortSettings.fOutX = TRUE;
+	PortSettings.fInX = TRUE;
+	break;
+	/* HARDWARE Flow Control (outbound/both) */
+    case TNCOM_CMD_FLOW_HARDWARE:
+	PortSettings.fOutxCtsFlow = TRUE;
+	PortSettings.fOutxDsrFlow = FALSE;
+	PortSettings.fRtsControl = RTS_CONTROL_HANDSHAKE;
+	PortSettings.fOutX = TRUE;
+	PortSettings.fInX = TRUE;
+	break;
+
+	/* DTR Signal State ON */
+    case TNCOM_CMD_DTR_ON:
+	PortSettings.fDtrControl = DTR_CONTROL_ENABLE;
+	break;
+	/* DTR Signal State OFF */
+    case TNCOM_CMD_DTR_OFF:
+	PortSettings.fDtrControl = DTR_CONTROL_DISABLE;
+	break;
+	/* RTS Signal State ON */
+    case TNCOM_CMD_RTS_ON:
+	PortSettings.fRtsControl = RTS_CONTROL_ENABLE;
+	break;
+	/* RTS Signal State OFF */
+    case TNCOM_CMD_RTS_OFF:
+	PortSettings.fRtsControl = RTS_CONTROL_DISABLE;
+	break;
+
+	/* INBOUND FLOW CONTROL is ignored */
+    case TNCOM_CMD_INFLOW_NONE:
+    case TNCOM_CMD_INFLOW_XONXOFF:
+    case TNCOM_CMD_INFLOW_HARDWARE:
+	LogMsg(LOG_WARNING, "Inbound flow control ignored.");
+	break;
+
+    case TNCOM_CMD_FLOW_DCD:
+	LogMsg(LOG_WARNING, "DCD Flow Control ignored.");
+	break;
+
+    case TNCOM_CMD_INFLOW_DTR:
+	LogMsg(LOG_WARNING, "DTR Flow Control ignored.");
+	break;
+
+    case TNCOM_CMD_FLOW_DSR:
+	LogMsg(LOG_WARNING, "DSR Flow Control ignored.");
+	break;
+
+    default:
+	LogMsg(LOG_WARNING, "Requested invalid flow control.");
+	break;
+    }
+
+    if (!SetCommState(PortFd, &PortSettings)) {
+	LogMsg(LOG_NOTICE, "SetPortFlowControl: Unable to configure port.");
+    }
 }
 
 /* Set the serial port speed */
