@@ -12,21 +12,47 @@ implemented in Cisco Terminal Servers in IOS version 11.x.
 RFC 2217 clients include:
 
  * C-Kermit 8.0 for Unix, VMS, and QNX
-   <http://www.columbia.edu/kermit/ckermit.html>
+   http://www.columbia.edu/kermit/ckermit.html
 
  * DialOut/IP V2, a commercial Windows 95/98/NT client. 
-   <www.tacticalsoftware.com>
+   www.tacticalsoftware.com
 
  * cyclades-serial-client
-   <http://www.lysator.liu.se/~astrand/projects/cyclades-serial-client/>
+   http://www.lysator.liu.se/~astrand/projects/cyclades-serial-client/
 
  * HW Virtual Serial Port (for Windows 2000 and XP)
-   <http://www.hw-group.com/products/hw_vsp/index_en.html>
+   http://www.hw-group.com/products/hw_vsp/index_en.html
 
    Note: One person has reported success with this client, but others
    have reported that client does NOT work correctly with sercd; nor
    with other RFC2217 servers. As far as I can tell, the problem lies
    in HW VSP; not in sercd. 
+
+* Java NVTCom library
+  http://www.viara.cn/en/nvtcom.htm
+
+* Lantronix Com Port Redirector
+  http://www.lantronix.com/device-networking/utilities-tools/com-port-redirector.html
+
+* Fabulatech Serial Port Redirector
+  http://www.serial-port-redirector.com
+
+
+
+Other known RFC2217 servers:
+
+* Extended socat
+  http://www.dest-unreach.org/socat/contrib/socat-rfc2217.html 
+  (also a client, apparently)
+
+* Java TS
+  http://www.viara.cn/en/jts.htm
+
+* ser2net
+  http://ser2net.sourceforge.net/
+
+* VPortPro
+  http://www.vportpro.com
 
 
 Compilation
