@@ -209,7 +209,31 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 unsigned char
 GetModemState(PORTHANDLE PortFd, unsigned char PMState)
 {
-    assert(0);
+    DWORD MLines;
+    unsigned char MState = (unsigned char) 0;
+
+    if (!SercdGetCommModemStatus(PortFd, &MLines)) {
+	return 0;
+    }
+
+    if ((MLines & MS_RLSD_ON) != 0)
+	MState += TNCOM_MODMASK_RLSD;
+    if ((MLines & MS_RING_ON) != 0)
+	MState += TNCOM_MODMASK_RING;
+    if ((MLines & MS_DSR_ON) != 0)
+	MState += TNCOM_MODMASK_DSR;
+    if ((MLines & MS_CTS_ON) != 0)
+	MState += TNCOM_MODMASK_CTS;
+    if ((MState & TNCOM_MODMASK_RLSD) != (PMState & TNCOM_MODMASK_RLSD))
+	MState += TNCOM_MODMASK_RLSD_DELTA;
+    if ((MState & TNCOM_MODMASK_RING) != (PMState & TNCOM_MODMASK_RING))
+	MState += TNCOM_MODMASK_RING_TRAIL;
+    if ((MState & TNCOM_MODMASK_DSR) != (PMState & TNCOM_MODMASK_DSR))
+	MState += TNCOM_MODMASK_DSR_DELTA;
+    if ((MState & TNCOM_MODMASK_CTS) != (PMState & TNCOM_MODMASK_CTS))
+	MState += TNCOM_MODMASK_CTS_DELTA;
+
+    return (MState);
 }
 
 /* Set the serial port data size */
