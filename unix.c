@@ -201,7 +201,8 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
 	/* DTR Signal State */
     case TNCOM_CMD_DTR_REQ:
-	if (MLines & TIOCM_DTR)
+	/* See comment below. */
+	if (MLines & TIOCM_DSR)
 	    return TNCOM_CMD_DTR_ON;
 	else
 	    return TNCOM_CMD_DTR_OFF;
@@ -209,7 +210,12 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
 	/* RTS Signal State */
     case TNCOM_CMD_RTS_REQ:
-	if (MLines & TIOCM_RTS)
+	/* Note: RFC2217 mentions RTS but never CTS. Since RTS is an
+	   output signal, it doesn't make sense to return it's status,
+	   especially if this means we cannot return the CTS
+	   status. We believe the RFC is in error in this
+	   area. Therefore, we are returning CTS rather than RTS. */
+	if (MLines & TIOCM_CTS)
 	    return TNCOM_CMD_RTS_ON;
 	else
 	    return TNCOM_CMD_RTS_OFF;
