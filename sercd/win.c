@@ -238,7 +238,12 @@ SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
 {
     DCB PortSettings;
 
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return;
+    }
+
     PortSettings.ByteSize = DataSize;
+
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortDataSize: Unable to configure port.");
     }
@@ -249,6 +254,10 @@ void
 SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
 {
     DCB PortSettings;
+
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return;
+    }
 
     switch (Parity) {
     case TNCOM_ODDPARITY:
@@ -282,7 +291,28 @@ SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
 void
 SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
 {
-    assert(0);
+    DCB PortSettings;
+
+    if (!SercdGetCommState(PortFd, &PortSettings)) {
+	return 0;
+    }
+
+    switch (StopSize) {
+    case TNCOM_TWOSTOPBITS:
+	PortSettings.StopBits = TWOSTOPBITS;
+	break;
+    case TNCOM_ONE5STOPBITS:
+	PortSettings.StopBits = ONE5STOPBITS;
+	break;
+    case TNCOM_ONESTOPBIT:
+    default:
+	PortSettings.StopBits = ONESTOPBIT;
+	break;
+    }
+
+    if (!SetCommState(PortFd, &PortSettings)) {
+	LogMsg(LOG_NOTICE, "SetPortStopSize: Unable to configure port.");
+    }
 }
 
 /* Set the port flow control and DTR and RTS status */
