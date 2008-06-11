@@ -26,7 +26,6 @@ static OVERLAPPED *DeviceOverlapped = NULL;
 static OVERLAPPED DeviceOverlapped_struct = { 0 };
 static DWORD DeviceCommEvents;
 static BOOL DeviceWritable = TRUE;
-static BOOL DeviceModemEvents = FALSE;
 static DWORD DeviceReadChars = 0;
 
 
@@ -261,6 +260,7 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemSta
     PORTHANDLE *Device = NULL;
     SERCD_SOCKET *Socket = NULL;
     char LogStr[TmpStrLen];
+    BOOL DeviceModemEvents = FALSE;
 
     if (DeviceIn && DeviceOut) {
 	assert(DeviceIn == DeviceOut);
