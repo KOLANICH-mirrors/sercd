@@ -182,14 +182,6 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
     /* Check wich kind of information is requested */
     switch (Which) {
-	/* BREAK State  */
-    case TNCOM_CMD_BREAK_REQ:
-	if (BreakSignaled == True)
-	    return TNCOM_CMD_BREAK_ON;
-	else
-	    return TNCOM_CMD_BREAK_OFF;
-	break;
-
 	/* DTR Signal State */
     case TNCOM_CMD_DTR_REQ:
 	/* See comment below. */
@@ -378,17 +370,6 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXON;
 	PortSettings.c_iflag = PortSettings.c_iflag & ~IXOFF;
 	PortSettings.c_cflag = PortSettings.c_cflag | CRTSCTS;
-	break;
-	/* BREAK State ON */
-    case TNCOM_CMD_BREAK_ON:
-	tcsendbreak(PortFd, 1);
-	BreakSignaled = True;
-	break;
-	/* BREAK State OFF */
-    case TNCOM_CMD_BREAK_OFF:
-	/* Should not send another break */
-	/* tcsendbreak(PortFd,0); */
-	BreakSignaled = False;
 	break;
 	/* DTR Signal State ON */
     case TNCOM_CMD_DTR_ON:
