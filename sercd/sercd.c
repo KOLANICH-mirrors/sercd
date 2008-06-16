@@ -1451,7 +1451,9 @@ main(int argc, char **argv)
 	    if (selret & SERCD_EV_MODEMSTATE) {
 		unsigned char newstate;
 		newstate = GetModemState(*DeviceFd, ModemState);
-		if ((newstate & ModemStateMask) != (ModemState & ModemStateMask)) {
+		/* Don't send update if only delta changes */
+		if ((newstate & ModemStateMask & TNCOM_MODMASK_NODELTA)
+		    != (ModemState & ModemStateMask & TNCOM_MODMASK_NODELTA)) {
 		    ModemState = newstate;
 		    SendCPCByteCommand(&ToNetBuf, TNASC_NOTIFY_MODEMSTATE,
 				       (ModemState & ModemStateMask));
