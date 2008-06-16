@@ -118,6 +118,7 @@ Boolean;
 #define TNCOM_MODMASK_RING ((unsigned char) 64)
 #define TNCOM_MODMASK_DSR ((unsigned char) 32)
 #define TNCOM_MODMASK_CTS ((unsigned char) 16)
+#define TNCOM_MODMASK_NODELTA (TNCOM_MODMASK_RLSD|TNCOM_MODMASK_RING|TNCOM_MODMASK_DSR|TNCOM_MODMASK_CTS)
 #define TNCOM_MODMASK_RLSD_DELTA ((unsigned char) 8)
 #define TNCOM_MODMASK_RING_TRAIL ((unsigned char) 4)
 #define TNCOM_MODMASK_DSR_DELTA ((unsigned char) 2)
