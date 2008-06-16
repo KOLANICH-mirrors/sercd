@@ -1,6 +1,6 @@
 
 AC_INIT(sercd.c)
-AM_INIT_AUTOMAKE(sercd, 2.3.2)
+AM_INIT_AUTOMAKE(sercd, 3.0.0)
 AC_PROG_CC 
 AC_CANONICAL_HOST
 
