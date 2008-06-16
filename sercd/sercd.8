@@ -4,7 +4,7 @@ sercd \- RFC 2217 Serial Communications Daemon
 
 .SH "SYNOPSIS"
 .B sercd
-.I [\-i] log\-level serial\-device lock\-file [poll\-interval]
+.I [\-ie] [\-p port] [\-l addr] <loglevel> <device> <lockfile> [pollingterval]
 
 .SH "DESCRIPTION"
 This manual page documents briefly the
@@ -17,8 +17,19 @@ will use the RFC 2217 extensions to TELNET to implement serial commands over
 the TCP connection and interface to a specified serial port.
 
 .SH "OPTIONS"
-An optional first parameter is '\-i' to enable compatability with Cisco IOS.
-
+.TP
+.BR "-i"
+Enable compatability with Cisco IOS.
+.TP
+.BR "-e"
+Send output to standard error instead of syslog. 
+.TP
+.BR "-p port"
+Listen on specified port, instead of port 7000. 
+.TP
+.BR "-l addr"
+Standalone mode, bind to specified adress, empty string for all. 
+.PP
 The first mandatory parameter is the log level for use in syslog.  The next
 mandatory parameter is the device node for the serial device, it must be a
 fully qualified path.  The final mandatory parameter is the file name for the
@@ -33,8 +44,7 @@ Here is a configuration line for running it from inetd:
 sredir          stream  tcp     nowait  root    /usr/sbin/tcpd /usr/sbin/sercd 5 /dev/modem /var/lock/LCK..modem
 
 .SH "AUTHOR"
-This man page was written by Russell Coker <russell@coker.com.au>.  May be
-freely used and distributed without restriction under the terms of the GPL.
+This man page was written by Peter Åstrand <astrand@cendio.se>.
 .P
 The
 .I sercd
