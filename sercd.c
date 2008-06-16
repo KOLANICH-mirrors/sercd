@@ -1450,6 +1450,7 @@ main(int argc, char **argv)
 	    /* Check the port state and notify the client if it's changed */
 	    if (selret & SERCD_EV_MODEMSTATE) {
 		unsigned char newstate;
+		ModemStateNotified();
 		newstate = GetModemState(*DeviceFd, ModemState);
 		/* Don't send update if only delta changes */
 		if ((newstate & ModemStateMask & TNCOM_MODMASK_NODELTA)

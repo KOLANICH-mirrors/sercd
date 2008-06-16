@@ -166,5 +166,6 @@ ssize_t WriteToDev(PORTHANDLE port, const void *buf, size_t count);
 ssize_t ReadFromDev(PORTHANDLE port, void *buf, size_t count);
 ssize_t WriteToNet(SERCD_SOCKET sock, const void *buf, size_t count);
 ssize_t ReadFromNet(SERCD_SOCKET sock,  void *buf, size_t count);
+void ModemStateNotified();
 
 #endif /* SERCD_H */
