@@ -60,9 +60,6 @@
 /* Buffer size */
 #define BufferSize 2048
 
-/* Default modem state polling in milliseconds (100 msec should be enough) */
-#define DEFAULT_POLL_INTERVAL 100
-
 /* Cisco IOS bug compatibility */
 Boolean CiscoIOSCompatible = False;
 

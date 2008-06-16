@@ -21,5 +21,8 @@
 
 #define closesocket close
 
+/* Default modem state polling in milliseconds (100 msec should be enough) */
+#define DEFAULT_POLL_INTERVAL 100
+
 #endif /* SERCD_UNIX_H */
 #endif /* WIN32 */

@@ -654,12 +654,6 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemSta
 	(DeviceIn && DeviceReadChars) || (ModemState && DeviceModemEvents)) {
 	PollInterval = 0;
     }
-    else {
-	/* Since we are event driven, we do not need to rely on
-	   polling. We are using a long poll timeout, however, just to be
-	   safe. It's long enough to indicate when things are wrong. */
-	PollInterval = 4000;
-    }
 
     waitret = WaitForMultipleObjects(objects, ghEvents, FALSE, PollInterval);
     switch (waitret) {
