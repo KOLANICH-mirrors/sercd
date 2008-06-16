@@ -885,4 +885,9 @@ ReadFromNet(SERCD_SOCKET sock, void *buf, size_t count)
     return read(sock, buf, count);
 }
 
+void
+ModemStateNotified()
+{
+}
+
 #endif /* WIN32 */

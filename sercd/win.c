@@ -29,6 +29,7 @@ static OVERLAPPED DeviceOverlapped_struct = { 0 };
 static DWORD DeviceCommEvents;
 static BOOL DeviceWritable = TRUE;
 static DWORD DeviceReadChars = 0;
+static BOOL DeviceModemEvents = TRUE;
 
 
 /* Wrapper for GetCommState which logs errors */
@@ -572,7 +573,6 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemSta
     PORTHANDLE *Device = NULL;
     SERCD_SOCKET *Socket = NULL;
     char LogStr[TmpStrLen];
-    BOOL DeviceModemEvents = FALSE;
 
     if (DeviceIn && DeviceOut) {
 	assert(DeviceIn == DeviceOut);
@@ -651,8 +651,14 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemSta
 
     /* Need to wait? */
     if ((SocketOut && SocketWritable) || (DeviceOut && DeviceWritable) ||
-	(DeviceIn && DeviceReadChars)) {
+	(DeviceIn && DeviceReadChars) || (ModemState && DeviceModemEvents)) {
 	PollInterval = 0;
+    }
+    else {
+	/* Since we are event driven, we do not need to rely on
+	   polling. We are using a long poll timeout, however, just to be
+	   safe. It's long enough to indicate when things are wrong. */
+	PollInterval = 4000;
     }
 
     waitret = WaitForMultipleObjects(objects, ghEvents, FALSE, PollInterval);
@@ -737,8 +743,6 @@ SercdSelect(PORTHANDLE * DeviceIn, PORTHANDLE * DeviceOut, PORTHANDLE * ModemSta
     }
     if (ModemState && DeviceModemEvents) {
 	ret |= SERCD_EV_MODEMSTATE;
-	/* edge triggered */
-	DeviceModemEvents = FALSE;
     }
     if (SocketOut && SocketWritable) {
 	ret |= SERCD_EV_SOCKETOUT;
@@ -886,6 +890,12 @@ ssize_t
 ReadFromNet(SERCD_SOCKET sock, void *buf, size_t count)
 {
     return recv(sock, buf, count, 0);
+}
+
+void
+ModemStateNotified()
+{
+    DeviceModemEvents = FALSE;
 }
 
 #endif /* WIN32 */
