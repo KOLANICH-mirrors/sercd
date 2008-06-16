@@ -25,5 +25,11 @@
 #define LOG_INFO        6       /* informational */
 #define LOG_DEBUG       7       /* debug-level messages */
 
+/* Default modem state polling in milliseconds. Since we are event
+   driven, we do not need to rely on polling. We are using a long poll
+   timeout, however, just to be safe. It's long enough to indicate
+   when things are wrong. */
+#define DEFAULT_POLL_INTERVAL 4000
+
 #endif /* SERCD_WIN_H */
 #endif /* WIN32 */
