@@ -13,3 +13,5 @@ missing
 mkinstalldirs
 sercd
 *.tar.gz
+config.guess
+config.sub
