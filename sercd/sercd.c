@@ -53,10 +53,6 @@
 #include "unix.h"
 #include "win.h"
 
-/* Version id */
-#define VersionId "2.3.2"
-#define SercdVersionId "Version " VersionId
-
 /* Buffer size */
 #define BufferSize 2048
 
@@ -694,7 +690,7 @@ HandleCPCCommand(BufferType * SockB, PORTHANDLE PortFd, unsigned char *Command, 
     case TNCAS_SIGNATURE:
 	if (CSize == 6) {
 	    /* Void signature, client is asking for our signature */
-	    snprintf(SigStr, sizeof(SigStr), "sercd %s %s", VersionId, DeviceName);
+	    snprintf(SigStr, sizeof(SigStr), "sercd %s %s", VERSION, DeviceName);
 	    LogStr[sizeof(SigStr) - 1] = '\0';
 	    SendSignature(SockB, SigStr);
 	    snprintf(LogStr, sizeof(LogStr), "Sent signature: %s", SigStr);
@@ -1115,7 +1111,7 @@ Usage(void)
 	    "-p port  listen on specified port, instead of port 7000\n"
 	    "-l addr  standalone mode, bind to specified adress, empty string for all\n"
 	    "Poll interval is in milliseconds, default is %d,\n"
-	    "0 means no polling\n", SercdVersionId, DEFAULT_POLL_INTERVAL);
+	    "0 means no polling\n", VERSION, DEFAULT_POLL_INTERVAL);
 }
 
 /* Main function */
