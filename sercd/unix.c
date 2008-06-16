@@ -709,8 +709,6 @@ ClosePort(PORTHANDLE PortFd, const char *LockFileName)
     if (!StdErrLogging) {
 	closelog();
     }
-
-    /* FIXME: A lot more */
 }
 
 /* Function called on many signals */
