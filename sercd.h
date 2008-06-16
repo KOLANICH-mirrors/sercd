@@ -1,3 +1,8 @@
+/*
+ * sercd
+ * Copyright 2008 Peter Åstrand <astrand@cendio.se> for Cendio AB
+ * see file COPYING for license details
+ */
 
 #ifndef SERCD_H
 #define SERCD_H
