@@ -1133,9 +1133,6 @@ main(int argc, char **argv)
     /* Buffer to Network from Device */
     BufferType ToNetBuf;
 
-    /* Socket setup flag */
-    int SockParmEnable = 1;
-
     int opt = 0;
     char *optstring = "iep:l:";
     unsigned int opt_port = 7000;
@@ -1237,8 +1234,21 @@ main(int argc, char **argv)
 	    perror("socket");
 	    exit(Error);
 	}
+#ifndef WIN32
+	int SockParmEnable = 1;
+	/* Windows is totally broken wrt SO_REUSEADDR - it uses
+	   non-standard and mostly useless semantics. This is
+	   confirmed by Microsoft: From
+	   http://msdn.microsoft.com/en-us/library/ms740621(VS.85).aspx:
+	   "the behavior for all sockets bound to that port is
+	   indeterminate". "The exception to this non-deterministic
+	   behavior is multicast sockets. " Instead, they
+	   are recommending SO_EXCLUSIVEADDRUSE, but it typically only
+	   works if you have administrator privs. Bah. */
 	setsockopt(lsocket, SOL_SOCKET, SO_REUSEADDR, (char *) &SockParmEnable,
 		   sizeof(SockParmEnable));
+#endif
+
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(opt_port);
 	sin.sin_addr.s_addr = opt_bind_addr.s_addr;
