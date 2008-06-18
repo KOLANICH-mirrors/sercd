@@ -507,6 +507,7 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 
     PortSettings.fBinary = TRUE;
     PortSettings.fParity = FALSE;
+    PortSettings.fAbortOnError = FALSE;
 
     /* Write the port settings to device */
     if (!SetCommState(*PortFd, &PortSettings)) {
