@@ -59,17 +59,20 @@ static struct termios initialportsettings;
 #define LockFileMode 0644
 #define HDBHeaderLen 11
 
-/* Retrieves the port speed from PortFd */
-unsigned long int
-GetPortSpeed(PORTHANDLE PortFd)
+/* Convert termios speed to tncom speed */
+static unsigned long int
+Termios2TncomSpeed(struct termios *ti)
 {
-    struct termios PortSettings;
-    speed_t Speed;
+    speed_t ispeed, ospeed;
 
-    tcgetattr(PortFd, &PortSettings);
-    Speed = cfgetospeed(&PortSettings);
+    ispeed = cfgetispeed(ti);
+    ospeed = cfgetospeed(ti);
 
-    switch (Speed) {
+    if (ispeed != ospeed) {
+	LogMsg(LOG_WARNING, "warning: different input and output speed, using output speed");
+    }
+
+    switch (ospeed) {
     case B50:
 	return (50UL);
     case B75:
@@ -113,15 +116,12 @@ GetPortSpeed(PORTHANDLE PortFd)
     }
 }
 
-/* Retrieves the data size from PortFd */
-unsigned char
-GetPortDataSize(PORTHANDLE PortFd)
+/* Convert termios data size to tncom size */
+static unsigned char
+Termios2TncomDataSize(struct termios *ti)
 {
-    struct termios PortSettings;
     tcflag_t DataSize;
-
-    tcgetattr(PortFd, &PortSettings);
-    DataSize = PortSettings.c_cflag & CSIZE;
+    DataSize = ti->c_cflag & CSIZE;
 
     switch (DataSize) {
     case CS5:
@@ -137,6 +137,90 @@ GetPortDataSize(PORTHANDLE PortFd)
     }
 }
 
+/* Convert termios parity to tncom parity */
+static unsigned char
+Termios2TncomParity(struct termios *ti)
+{
+    if ((ti->c_cflag & PARENB) == 0)
+	return TNCOM_NOPARITY;
+
+    if ((ti->c_cflag & PARENB) && (ti->c_cflag & PARODD))
+	return TNCOM_ODDPARITY;
+
+    return TNCOM_EVENPARITY;
+}
+
+/* Convert termios stop size to tncom size */
+static unsigned char
+Termios2TncomStopSize(struct termios *ti)
+{
+    if ((ti->c_cflag & CSTOPB) == 0)
+	return TNCOM_ONESTOPBIT;
+    else
+	return TNCOM_TWOSTOPBITS;
+}
+
+/* Convert termios output flow control to tncom flow */
+static unsigned char
+Termios2TncomOutFlow(struct termios *ti)
+{
+    if (ti->c_iflag & IXON)
+	return TNCOM_CMD_FLOW_XONXOFF;
+    if (ti->c_cflag & CRTSCTS)
+	return TNCOM_CMD_FLOW_HARDWARE;
+    return TNCOM_CMD_FLOW_NONE;
+}
+
+/* Convert termios input flow control to tncom flow */
+static unsigned char
+Termios2TncomInFlow(struct termios *ti)
+{
+    if (ti->c_iflag & IXOFF)
+	return TNCOM_CMD_INFLOW_XONXOFF;
+    if (ti->c_cflag & CRTSCTS)
+	return TNCOM_CMD_INFLOW_HARDWARE;
+    return TNCOM_CMD_INFLOW_NONE;
+}
+
+static void
+UnixLogPortSettings(struct termios *ti)
+{
+    unsigned long speed;
+    unsigned char datasize;
+    unsigned char parity;
+    unsigned char stopsize;
+    unsigned char outflow, inflow;
+
+    speed = Termios2TncomSpeed(ti);
+    datasize = Termios2TncomDataSize(ti);
+    parity = Termios2TncomParity(ti);
+    stopsize = Termios2TncomStopSize(ti);
+    outflow = Termios2TncomOutFlow(ti);
+    inflow = Termios2TncomInFlow(ti);
+
+    LogPortSettings(speed, datasize, parity, stopsize, outflow, inflow);
+}
+
+/* Retrieves the port speed from PortFd */
+unsigned long int
+GetPortSpeed(PORTHANDLE PortFd)
+{
+    struct termios PortSettings;
+
+    tcgetattr(PortFd, &PortSettings);
+    return Termios2TncomSpeed(&PortSettings);
+}
+
+/* Retrieves the data size from PortFd */
+unsigned char
+GetPortDataSize(PORTHANDLE PortFd)
+{
+    struct termios PortSettings;
+
+    tcgetattr(PortFd, &PortSettings);
+    return Termios2TncomDataSize(&PortSettings);
+}
+
 /* Retrieves the parity settings from PortFd */
 unsigned char
 GetPortParity(PORTHANDLE PortFd)
@@ -144,14 +228,7 @@ GetPortParity(PORTHANDLE PortFd)
     struct termios PortSettings;
 
     tcgetattr(PortFd, &PortSettings);
-
-    if ((PortSettings.c_cflag & PARENB) == 0)
-	return TNCOM_NOPARITY;
-
-    if ((PortSettings.c_cflag & PARENB) && (PortSettings.c_cflag & PARODD))
-	return TNCOM_ODDPARITY;
-
-    return TNCOM_EVENPARITY;
+    return Termios2TncomParity(&PortSettings);
 }
 
 /* Retrieves the stop bits size from PortFd */
@@ -161,11 +238,7 @@ GetPortStopSize(PORTHANDLE PortFd)
     struct termios PortSettings;
 
     tcgetattr(PortFd, &PortSettings);
-
-    if ((PortSettings.c_cflag & CSTOPB) == 0)
-	return TNCOM_ONESTOPBIT;
-    else
-	return TNCOM_TWOSTOPBITS;
+    return Termios2TncomStopSize(&PortSettings);
 }
 
 /* Retrieves the flow control status, including DTR and RTS status,
@@ -206,21 +279,13 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
 	/* Com Port Flow Control Setting (inbound) */
     case TNCOM_CMD_INFLOW_REQ:
-	if (PortSettings.c_iflag & IXOFF)
-	    return TNCOM_CMD_INFLOW_XONXOFF;
-	if (PortSettings.c_cflag & CRTSCTS)
-	    return TNCOM_CMD_INFLOW_HARDWARE;
-	return TNCOM_CMD_INFLOW_NONE;
+	return Termios2TncomInFlow(&PortSettings);
 	break;
 
 	/* Com Port Flow Control Setting (outbound/both) */
     case TNCOM_CMD_FLOW_REQ:
     default:
-	if (PortSettings.c_iflag & IXON)
-	    return TNCOM_CMD_FLOW_XONXOFF;
-	if (PortSettings.c_cflag & CRTSCTS)
-	    return TNCOM_CMD_FLOW_HARDWARE;
-	return TNCOM_CMD_FLOW_NONE;
+	return Termios2TncomOutFlow(&PortSettings);
 	break;
     }
 }
@@ -283,6 +348,7 @@ SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
     PortSettings.c_cflag &= ~CSIZE;
     PortSettings.c_cflag |= PDataSize & CSIZE;
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+    UnixLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port parity */
@@ -311,6 +377,7 @@ SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
     }
 
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+    UnixLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port stop bits size */
@@ -338,6 +405,7 @@ SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
     }
 
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+    UnixLogPortSettings(&PortSettings);
 }
 
 /* Set the port flow control and DTR and RTS status */
@@ -414,6 +482,7 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
     ioctl(PortFd, TIOCMSET, &MLines);
+    UnixLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port speed */
@@ -491,6 +560,7 @@ SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
     cfsetospeed(&PortSettings, Speed);
     cfsetispeed(&PortSettings, Speed);
     tcsetattr(PortFd, TCSADRAIN, &PortSettings);
+    UnixLogPortSettings(&PortSettings);
 }
 
 void
@@ -676,6 +746,7 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
     InitialPortSettings = &initialportsettings;
     tcgetattr(*PortFd, InitialPortSettings);
     tcgetattr(*PortFd, &PortSettings);
+    UnixLogPortSettings(&PortSettings);
 
     /* Set the serial port to raw mode */
     cfmakeraw(&PortSettings);
