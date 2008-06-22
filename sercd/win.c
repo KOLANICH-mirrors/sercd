@@ -507,15 +507,27 @@ OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 
     /* Get the actual port settings */
     InitialPortSettings = &initialportsettings;
-
-    /* Get the actual port settings */
     InitialPortSettings->DCBlength = sizeof(DCB);
     GetCommState(*PortFd, InitialPortSettings);
-    GetCommState(*PortFd, &PortSettings);
+    WinLogPortSettings(InitialPortSettings);
 
+    /* We set all parameters that cannot be set through the
+       network. */
+    GetCommState(*PortFd, &PortSettings);
     PortSettings.fBinary = TRUE;
     PortSettings.fParity = FALSE;
+    PortSettings.fDsrSensitivity = FALSE;
+    PortSettings.fTXContinueOnXoff = TRUE;
+    PortSettings.fErrorChar = FALSE;
+    PortSettings.fNull = FALSE;
     PortSettings.fAbortOnError = FALSE;
+    PortSettings.XonLim = 2048;
+    PortSettings.XoffLim = 512;
+    PortSettings.XonChar = 17;
+    PortSettings.XoffChar = 19;
+    PortSettings.ErrorChar = 0;
+    PortSettings.EofChar = 0;
+    PortSettings.EvtChar = 0;
 
     /* Write the port settings to device */
     if (!SetCommState(*PortFd, &PortSettings)) {
