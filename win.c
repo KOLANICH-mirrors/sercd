@@ -83,6 +83,7 @@ unsigned char
 GetPortDataSize(PORTHANDLE PortFd)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return 0;
     }
@@ -140,6 +141,7 @@ unsigned char
 GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     DWORD MLines;
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
@@ -238,6 +240,7 @@ void
 SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return;
@@ -255,6 +258,7 @@ void
 SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return;
@@ -293,6 +297,7 @@ void
 SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return;
@@ -321,6 +326,7 @@ void
 SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return;
@@ -404,6 +410,7 @@ void
 SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
 
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return;
@@ -489,6 +496,7 @@ int
 OpenPort(const char *DeviceName, const char *LockFileName, PORTHANDLE * PortFd)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     char LogStr[TmpStrLen];
 
     *PortFd = CreateFile(DeviceName, GENERIC_READ | GENERIC_WRITE,
