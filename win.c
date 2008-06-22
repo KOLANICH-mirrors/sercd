@@ -67,11 +67,88 @@ SercdGetCommModemStatus(HANDLE hFile, DWORD * lpModemStat)
     }
 }
 
+/* Convert DCB parity to tncom parity */
+static unsigned char
+DCB2TncomParity(DCB * dcb)
+{
+    switch (dcb->Parity) {
+    case NOPARITY:
+	return TNCOM_NOPARITY;
+    case ODDPARITY:
+	return TNCOM_ODDPARITY;
+    case EVENPARITY:
+	return TNCOM_EVENPARITY;
+    case MARKPARITY:
+	return TNCOM_MARKPARITY;
+    case SPACEPARITY:
+	return TNCOM_SPACEPARITY;
+    default:
+	return TNCOM_NOPARITY;
+    }
+}
+
+/* Convert DCB stop size to tncom size */
+static unsigned char
+DCB2TncomStopSize(DCB * dcb)
+{
+    switch (dcb->StopBits) {
+    case ONESTOPBIT:
+	return TNCOM_ONESTOPBIT;
+    case ONE5STOPBITS:
+	return TNCOM_ONE5STOPBITS;
+    case TWOSTOPBITS:
+	return TNCOM_TWOSTOPBITS;
+    default:
+	return TNCOM_ONESTOPBIT;
+    }
+}
+
+/* Convert DCB output flow to tncom flow*/
+static unsigned char
+DCB2TncomOutFlow(DCB * dcb)
+{
+    if (dcb->fOutX)
+	return TNCOM_CMD_FLOW_XONXOFF;
+    if (dcb->fOutxCtsFlow)
+	return TNCOM_CMD_FLOW_HARDWARE;
+    if (dcb->fOutxDsrFlow)
+	return TNCOM_CMD_FLOW_DSR;
+    /* No support for DCD/RLSD flow control */
+    return TNCOM_CMD_FLOW_NONE;
+}
+
+/* Convert DCB input flow to tncom flow*/
+static unsigned char
+DCB2TncomInFlow(DCB * dcb)
+{
+    if (dcb->fInX)
+	return TNCOM_CMD_INFLOW_XONXOFF;
+    if (dcb->fOutxCtsFlow)
+	return TNCOM_CMD_INFLOW_HARDWARE;
+    return TNCOM_CMD_INFLOW_NONE;
+}
+
+static void
+WinLogPortSettings(DCB * dcb)
+{
+    unsigned char parity;
+    unsigned char stopsize;
+    unsigned char outflow, inflow;
+
+    parity = DCB2TncomParity(dcb);
+    stopsize = DCB2TncomStopSize(dcb);
+    outflow = DCB2TncomOutFlow(dcb);
+    inflow = DCB2TncomInFlow(dcb);
+
+    LogPortSettings(dcb->BaudRate, dcb->ByteSize, parity, stopsize, outflow, inflow);
+}
+
 /* Retrieves the port speed from PortFd */
 unsigned long int
 GetPortSpeed(PORTHANDLE PortFd)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return 0;
     }
@@ -95,24 +172,12 @@ unsigned char
 GetPortParity(PORTHANDLE PortFd)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return 0;
     }
 
-    switch (PortSettings.Parity) {
-    case NOPARITY:
-	return TNCOM_NOPARITY;
-    case ODDPARITY:
-	return TNCOM_ODDPARITY;
-    case EVENPARITY:
-	return TNCOM_EVENPARITY;
-    case MARKPARITY:
-	return TNCOM_MARKPARITY;
-    case SPACEPARITY:
-	return TNCOM_SPACEPARITY;
-    default:
-	return TNCOM_NOPARITY;
-    }
+    return DCB2TncomParity(&PortSettings);
 }
 
 /* Retrieves the stop bits size from PortFd */
@@ -120,19 +185,12 @@ unsigned char
 GetPortStopSize(PORTHANDLE PortFd)
 {
     DCB PortSettings;
+    PortSettings.DCBlength = sizeof(DCB);
     if (!SercdGetCommState(PortFd, &PortSettings)) {
 	return 0;
     }
-    switch (PortSettings.StopBits) {
-    case ONESTOPBIT:
-	return TNCOM_ONESTOPBIT;
-    case ONE5STOPBITS:
-	return TNCOM_ONE5STOPBITS;
-    case TWOSTOPBITS:
-	return TNCOM_TWOSTOPBITS;
-    default:
-	return TNCOM_ONESTOPBIT;
-    }
+
+    return DCB2TncomStopSize(&PortSettings);
 }
 
 /* Retrieves the flow control status, including DTR and RTS status,
@@ -182,24 +240,13 @@ GetPortFlowControl(PORTHANDLE PortFd, unsigned char Which)
 
 	/* Com Port Flow Control Setting (inbound) */
     case TNCOM_CMD_INFLOW_REQ:
-	if (PortSettings.fInX)
-	    return TNCOM_CMD_INFLOW_XONXOFF;
-	if (PortSettings.fOutxCtsFlow)
-	    return TNCOM_CMD_INFLOW_HARDWARE;
-	return TNCOM_CMD_INFLOW_NONE;
+	return DCB2TncomInFlow(&PortSettings);
 	break;
 
 	/* Com Port Flow Control Setting (outbound/both) */
     case TNCOM_CMD_FLOW_REQ:
     default:
-	if (PortSettings.fOutX)
-	    return TNCOM_CMD_FLOW_XONXOFF;
-	if (PortSettings.fOutxCtsFlow)
-	    return TNCOM_CMD_FLOW_HARDWARE;
-	if (PortSettings.fOutxDsrFlow)
-	    return TNCOM_CMD_FLOW_DSR;
-	/* No support for DCD/RLSD flow control */
-	return TNCOM_CMD_FLOW_NONE;
+	return DCB2TncomOutFlow(&PortSettings);
 	break;
     }
 }
@@ -251,6 +298,7 @@ SetPortDataSize(PORTHANDLE PortFd, unsigned char DataSize)
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortDataSize: Unable to configure port.");
     }
+    WinLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port parity */
@@ -290,6 +338,7 @@ SetPortParity(PORTHANDLE PortFd, unsigned char Parity)
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortDataSize: Unable to configure port.");
     }
+    WinLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port stop bits size */
@@ -319,6 +368,7 @@ SetPortStopSize(PORTHANDLE PortFd, unsigned char StopSize)
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortStopSize: Unable to configure port.");
     }
+    WinLogPortSettings(&PortSettings);
 }
 
 /* Set the port flow control and DTR and RTS status */
@@ -403,6 +453,7 @@ SetPortFlowControl(PORTHANDLE PortFd, unsigned char How)
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortFlowControl: Unable to configure port.");
     }
+    WinLogPortSettings(&PortSettings);
 }
 
 /* Set the serial port speed */
@@ -421,6 +472,7 @@ SetPortSpeed(PORTHANDLE PortFd, unsigned long BaudRate)
     if (!SetCommState(PortFd, &PortSettings)) {
 	LogMsg(LOG_NOTICE, "SetPortSpeed: Unable to configure port.");
     }
+    WinLogPortSettings(&PortSettings);
 }
 
 void
