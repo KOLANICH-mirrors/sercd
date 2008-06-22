@@ -1097,6 +1097,95 @@ IOResultError(int iobytes, const char *err, const char *eof_err)
 }
 
 void
+LogPortSettings(unsigned long speed, unsigned char datasize, unsigned char parity,
+		unsigned char stopsize, unsigned char outflow, unsigned char inflow)
+{
+    char LogStr[TmpStrLen];
+    char parchar;
+    char *stopbits = "";
+    char *outflowtype = "";
+    char *inflowtype = "";
+
+    switch (parity) {
+    case TNCOM_ODDPARITY:
+	parchar = 'O';
+	break;
+    case TNCOM_EVENPARITY:
+	parchar = 'E';
+	break;
+    case TNCOM_MARKPARITY:
+	parchar = 'M';
+	break;
+    case TNCOM_SPACEPARITY:
+	parchar = 'S';
+	break;
+    case TNCOM_NOPARITY:
+	parchar = 'N';
+	break;
+    default:
+	parchar = 'I';
+	break;
+    }
+
+    switch (stopsize) {
+    case TNCOM_ONESTOPBIT:
+	stopbits = "1";
+	break;
+    case TNCOM_ONE5STOPBITS:
+	stopbits = "1.5";
+	break;
+    case TNCOM_TWOSTOPBITS:
+	stopbits = "2";
+	break;
+    }
+
+    switch (outflow) {
+    case TNCOM_CMD_FLOW_NONE:
+	inflowtype = "none";
+	break;
+    case TNCOM_CMD_FLOW_XONXOFF:
+	inflowtype = "XON/XOFF";
+	break;
+    case TNCOM_CMD_FLOW_HARDWARE:
+	inflowtype = "RTS/CTS";
+	break;
+    case TNCOM_CMD_FLOW_DCD:
+	inflowtype = "DCD flow control";
+	break;
+    case TNCOM_CMD_FLOW_DSR:
+	inflowtype = "DSR";
+	break;
+    default:
+	inflowtype = "unknown";
+	break;
+    }
+
+    switch (inflow) {
+    case TNCOM_CMD_INFLOW_NONE:
+	outflowtype = "none";
+	break;
+    case TNCOM_CMD_INFLOW_XONXOFF:
+	outflowtype = "XON/XOFF";
+	break;
+    case TNCOM_CMD_INFLOW_HARDWARE:
+	outflowtype = "RTS/CTS";
+	break;
+    case TNCOM_CMD_INFLOW_DTR:
+	outflowtype = "DTR";
+	break;
+    default:
+	outflowtype = "unknown";
+	break;
+    }
+
+    snprintf(LogStr, sizeof(LogStr),
+	     "Port settings:%lu-%u-%c-%s outflow:%s inflow:%s",
+	     speed, datasize, parchar, stopbits, outflowtype, inflowtype);
+    LogStr[sizeof(LogStr) - 1] = '\0';
+    LogMsg(LOG_NOTICE, LogStr);
+}
+
+void
 Usage(void)
 {
     /* Write little usage information */
