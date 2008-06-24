@@ -541,6 +541,7 @@ LogMsg(int LogLevel, const char *const Msg)
 {
     if (LogLevel <= MaxLogLevel) {
 	fprintf(stderr, "%s\n", Msg);
+	fflush(stderr);
     }
 }
 
