@@ -2,7 +2,7 @@ AM_CFLAGS=-Wall
 
 sbin_PROGRAMS = sercd
 
-sercd_SOURCES = sercd.c sercd.h win.c win.h unix.c unix.h
+sercd_SOURCES = sercd.c sercd.h win.c win.h unix.c unix.h winerrno.h
 sercd_LDADD = 
 
 if OS_IS_WIN32

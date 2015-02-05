@@ -9,12 +9,11 @@
 #define SERCD_WIN_H
 #include <windows.h>
 #include <ws2tcpip.h>
+#include "winerrno.h"
 
 #define PORTHANDLE HANDLE
 
 #define SERCD_SOCKET SOCKET
-
-#define EWOULDBLOCK WSAEWOULDBLOCK
 
 #define LOG_EMERG       0       /* system is unusable */
 #define LOG_ALERT       1       /* action must be taken immediately */
