@@ -49,6 +49,7 @@
 #include <time.h>		/* CLOCKS_PER_SEC */
 #include <fcntl.h>		/* open */
 #include <assert.h>		/* assert */
+#include <netdb.h>
 #include "sercd.h"
 #include "unix.h"
 #include "win.h"
@@ -1194,11 +1195,12 @@ Usage(void)
 	    "This program can be run by the inetd superserver or standalone\n"
 	    "\n"
 	    "Usage:\n"
-	    "sercd [-ie] [-p port] [-l addr] <loglevel> <device> <lockfile> [pollingterval]\n"
+	    "sercd [-ie] [-p port] [-l addr] [-c addr] <loglevel> <device> <lockfile> [pollingterval]\n"
 	    "-i       indicates Cisco IOS Bug compatibility\n"
 	    "-e       send output to standard error instead of syslog\n"
-	    "-p port  listen on specified port, instead of port 7000\n"
+	    "-p port  use specified port, instead of port 7000\n"
 	    "-l addr  standalone mode, bind to specified adress, empty string for all\n"
+	    "-c addr  client mode: connect to specified server address\n"
 	    "Poll interval is in milliseconds, default is %d,\n"
 	    "0 means no polling\n", VERSION, DEFAULT_POLL_INTERVAL);
 }
@@ -1223,13 +1225,14 @@ main(int argc, char **argv)
     BufferType ToNetBuf;
 
     int opt = 0;
-    char *optstring = "iep:l:";
+    char *optstring = "iep:l:c:";
     unsigned int opt_port = 7000;
     Boolean inetd_mode = True;
     struct in_addr opt_bind_addr;
     SERCD_SOCKET insocket, outsocket, lsocket;
     SERCD_SOCKET *LSocketFd = NULL;
     PORTHANDLE devicefd;
+    char *connect_addr = NULL;
 
     opt_bind_addr.s_addr = INADDR_ANY;
 
@@ -1259,6 +1262,10 @@ main(int argc, char **argv)
 		}
 	    }
 	    inetd_mode = False;
+	    break;
+	case 'c':
+	    inetd_mode = False;
+	    connect_addr = strdup(optarg);
 	    break;
 	}
     }
@@ -1314,8 +1321,48 @@ main(int argc, char **argv)
 	InitBuffer(&ToNetBuf);
 	InitTelnetStateMachine();
 	SendTelnetInitialOptions(&ToNetBuf);
-    }
-    else {
+    } else if (connect_addr) {
+	struct addrinfo hints, *res;
+	int errcode;
+	char connect_port[8];
+
+	snprintf(connect_port, sizeof(connect_port), "%d", opt_port);
+	memset (&hints, 0, sizeof (hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	errcode = getaddrinfo (connect_addr, connect_port, &hints, &res);
+	free(connect_addr);
+	if (errcode != 0) {
+	    fprintf(stderr, "Invalid server address: %s\n", gai_strerror(errcode));
+	    exit(Error);
+	}
+	if (!res) {
+	    fprintf(stderr, "Error: host has no address\n");
+	    exit(Error);
+	}
+
+	insocket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (insocket < 0) {
+	    perror("socket");
+	    exit(Error);
+	}
+
+	/* Using first address */
+	if (connect(insocket, res->ai_addr, res->ai_addrlen) < 0) {
+	    perror("connect");
+	    exit(Error);
+	}
+	freeaddrinfo(res);
+
+	outsocket = insocket;
+	InSocketFd = &insocket;
+	OutSocketFd = &outsocket;
+	SetSocketOptions(*InSocketFd, *OutSocketFd);
+	InitBuffer(&ToNetBuf);
+	InitTelnetStateMachine();
+	SendTelnetInitialOptions(&ToNetBuf);
+
+    } else {
 	/* Standalone mode */
 	struct sockaddr_in sin;
 	lsocket = socket(PF_INET, SOCK_STREAM, 0);
